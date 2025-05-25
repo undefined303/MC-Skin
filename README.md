@@ -26,6 +26,6 @@ base64编码可使用[菜鸟工具（点击可进入）](https://www.jyshare.com
 
 开源项目 [skinview3d](https://github.com/bs-community/skinview3d) [three.js](https://github.com/mrdoob/three.js/)
 
-欢迎star，issue，pr
+油猴链接：https://greasyfork.org/zh-CN/scripts/537235
 
 脚本如有bug或建议敬请提出，但是可能由于个人能力不足，不一定能够处理。

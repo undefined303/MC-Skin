@@ -1,10 +1,10 @@
 // ==UserScript==
-// @name         MC-Skin
+// @name         MC Skin
 // @namespace    https://viayoo.com/
-// @version      1.0
+// @version      2.0
 // @description  在网页里添加一个MC小人
 // @author       undefined303
-// @license      MIT
+// @license MIT
 // @run-at       document-end
 // @match        *
 // @include      *
@@ -13,27 +13,223 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_deleteValue
+// @grant        GM_xmlhttpRequest
 // @require      data:text/javascript,const%20origdef%20%3D%20window.define%3B
 // @require      data:text/javascript,window.define%20%3D%20undefined%3B
 // @require    https://fastly.jsdelivr.net/npm/skinview3d@3.4.1/bundles/skinview3d.bundle.min.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js
+// @require      https://fastly.jsdelivr.net/npm/three@0.128.0/build/three.min.js
 // @require      data:text/javascript,window.define%20%3D%20origdef%3B
 // ==/UserScript==
 (function() {
 	'use strict'
-	var skin = "";
-	// 设置皮肤，格式为：var skin="这里填皮肤文件的base64"
-
-	// 此下如不能理解代码勿改
+	var skin = GM_getValue("skin", null);
 	if (self != top) {
 		return;
 	}
 	console.log("%cMcSkin.js", "color:orange");
+	const box = document.createElement("div");
+	document.documentElement.append(box);
+	const shadow = box.attachShadow({
+		mode: "closed"
+	});
+	const inner = document.createElement("main");
+	shadow.append(inner);
+	var dialog = inner.appendChild(document.createElement("dialog"));
+	dialog.setAttribute("style", `border:none !important;
+border-radius:10px !important;
+width:min(70vw,350px) !important;
+max-width:100vw !important;
+text-align:center !important;
+ padding:40px 0px !important;
+box-shadow:0px 0px 7px 1px rgba(0,0,0,.3) !important;
+backdrop-filter: blur(50px);
+background-color: rgba(255, 255, 255, 0.8);
+outline:none !important;
+font-size:0px;
+`)
+	var span = document.body.appendChild(document.createElement("span"));
+	span.setAttribute("style", "font-size:1.2em");
+	var fontSize = window.getComputedStyle(span).fontSize;
+	document.body.removeChild(span);
+	dialog.addEventListener("click", e => {
+		const dialogDimensions = dialog.getBoundingClientRect()
+		if (
+			e.clientX < dialogDimensions.left ||
+			e.clientX > dialogDimensions.right ||
+			e.clientY < dialogDimensions.top ||
+			e.clientY > dialogDimensions.bottom
+		) {
+			dialog.close()
+		}
+	})
+	var removeAllChild = function(node) {
+		while (node.hasChildNodes()) {
+			node.removeChild(node.lastChild);
+		}
+	}
 	skin = GM_getValue("skin", skin);
-	if (!skin && !GM_getValue("skin", null)) {
-		alert(`[MC Skin]
-需要在脚本代码skin字段填入皮肤文件base64。`)
-		return;
+
+	var uploadSkin = function(isSave) {
+		dialog.close();
+		return new Promise((resolve, reject) => {
+			let input = document.createElement('input');
+			input.type = 'file';
+			input.accept = 'image/png';
+			input.style.display = 'none';
+			input.multiple = false;
+			input.addEventListener('change', (event) => {
+				let file = event.target.files[0];
+				if (!file) {
+					reject(new Error('No file selected'));
+					return;
+				}
+				if (file.type !== 'image/png') {
+					reject(new Error('Only PNG files are allowed'));
+					return;
+				}
+				let reader = new FileReader();
+				reader.onload = (e) => {
+					try {
+						const base64 = e.target.result;
+						skinViewer.loadSkin(base64);
+						skin = base64;
+						if (isSave) {
+							GM_setValue("skin", base64);
+						}
+						resolve(base64);
+					} catch (error) {
+						reject(error);
+					}
+				};
+				reader.onerror = (error) => reject(error);
+				reader.readAsDataURL(file);
+			});
+			document.body.appendChild(input);
+			input.click();
+			setTimeout(() => {
+				document.body.removeChild(input);
+			}, 200)
+		});
+	}
+
+	var createSkinPickerDialog = function(isSave, info) {
+		removeAllChild(dialog);
+		let span = dialog.appendChild(document.createElement("span"));
+		span.style.fontSize = fontSize;
+		span.innerText = info;
+		span.style.display = "block";
+		let wrap = dialog.appendChild(document.createElement("div"));
+		wrap.style.display = "block";
+		let nameInp = wrap.appendChild(document.createElement("input"));
+		nameInp.placeholder = "使用正版ID获取皮肤";
+		nameInp.setAttribute("style", `
+outline:none;
+border:none;
+border-bottom:2px solid black;
+background:transparent;
+margin-right:10px;
+`)
+		nameInp.addEventListener("input", function() {
+			if (nameInp.value != "") {
+				uploadBtn.innerText = "获取皮肤";
+				uploadBtn.onclick = function() {
+					let span1 = dialog.appendChild(document.createElement("span"));
+					span1.style.fontSize = fontSize;
+					span1.innerText = `获取中 ...`;
+					span1.style.display = "block";
+					const username = nameInp.value.trim();
+					GM_xmlhttpRequest({
+						method: 'GET',
+						url: `https://api.mojang.com/users/profiles/minecraft/${username}`,
+						onload: function(uuidResponse) {
+							try {
+								const uuidData = JSON.parse(uuidResponse.responseText);
+								const uuid = uuidData.id;
+								GM_xmlhttpRequest({
+									method: 'GET',
+									url: `https://sessionserver.mojang.com/session/minecraft/profile/${uuid}`,
+									onload: function(profileResponse) {
+										try {
+											const profileData = JSON.parse(profileResponse.responseText);
+											const texturesProp = profileData.properties.find(p => p.name === 'textures');
+											if (!texturesProp) {
+												alert('未获取到皮肤');
+												dialog.close();
+											}
+											const texturesJson = atob(texturesProp.value);
+											const texturesData = JSON.parse(texturesJson);
+											const skinUrl = texturesData.textures.SKIN.url;
+											GM_xmlhttpRequest({
+												method: "GET",
+												url: skinUrl,
+												responseType: "blob",
+												onload: function(response) {
+													const reader = new FileReader();
+													reader.onloadend = function() {
+														skinViewer.loadSkin(reader.result);
+                                                        skin = reader.result;
+														if (isSave) {
+															GM_setValue("skin", reader.result);
+														}
+														dialog.close();
+													}
+													reader.readAsDataURL(response.response);
+												},
+												onerror: function(e) {
+													alert("皮肤加载错误")
+													dialog.close();
+												}
+											});
+										} catch (e) {
+											alert(`
+                                   ${ e.message.includes('default') ? e.message : 'API请求失败，无法获取皮肤信息，请检查ID是否正确，或者检查网络连接'}`);
+											dialog.close();
+										}
+									},
+									onerror: function(e) {
+										alert(`API请求失败，无法获取皮肤信息，请检查ID是否正确，或者检查网络连接`);
+										dialog.close();
+									}
+								});
+							} catch (e) {
+								alert(`${e.responseText ? JSON.parse(e.responseText).errorMessage : 'API请求失败，无法获取皮肤信息，请检查ID是否正确，或者检查网络连接'}
+                    `);
+								dialog.close();
+							}
+						},
+						onerror: function(e) {
+							alert(`${e.responseText ? JSON.parse(e.responseText).errorMessage : 'API请求失败无法获取皮肤信息，请检查ID是否正确，或者检查网络连接'}`);
+							dialog.close();
+						}
+					});
+				}
+			} else {
+				uploadBtn.innerText = "上传皮肤";
+				uploadBtn.onclick = function() {
+					uploadSkin(isSave);
+				};
+			}
+		})
+		let uploadBtn = wrap.appendChild(document.createElement("button"));
+		uploadBtn.onclick = uploadSkin;
+		uploadBtn.setAttribute("style", `
+color:white;
+background:#6F8DE1;
+border:none;
+outline:none;
+padding:5px 10px;
+border-radius:10px;
+margin-top:20px;
+`)
+		uploadBtn.style.fontSize = fontSize;
+		uploadBtn.innerText = "上传皮肤";
+
+	}
+	if (!skin) {
+		createSkinPickerDialog(true, `[MC Skin] 初次使用需要上传皮肤文件`);
+		dialog.showModal();
+		dialog.focus();
+		dialog.blur();
 	}
 	var opacity = GM_getValue("opacity", "0.85");
 	var positionLeft;
@@ -327,36 +523,18 @@
 		handleAfkAnimation();
 		handleInputEvent();
 	});
-	const box = document.createElement("div");
-	document.documentElement.append(box);
-	const shadow = box.attachShadow({
-		mode: "closed"
-	});
-	const inner = document.createElement("main");
-	shadow.append(inner);
-	var dialog = inner.appendChild(document.createElement("dialog"));
-	dialog.setAttribute("style", `border:none !important;
-border-radius:10px !important;
-width:min(70vw,350px) !important;
-max-width:100vw !important;
-text-align:center !important;
- padding:40px 0px !important;
-box-shadow:0px 0px 7px 1px rgba(0,0,0,.3) !important;
-backdrop-filter: blur(50px);
-background-color: rgba(255, 255, 255, 0.8);`)
-	var span = document.body.appendChild(document.createElement("span"));
-	span.setAttribute("style", "font-size:1.3em");
-	var fontSize = window.getComputedStyle(span).fontSize;
-	document.body.removeChild(span);
-	var d1 = dialog.appendChild(document.createElement("div"));
-	d1.setAttribute("style", `padding-bottom:15px !important;
+
+	GM_registerMenuCommand("调整透明度", function() {
+		removeAllChild(dialog)
+		var d1 = dialog.appendChild(document.createElement("div"))
+		d1.setAttribute("style", `padding-bottom:15px !important;
 font-size:` + fontSize)
-	var inp = dialog.appendChild(document.createElement("input"));
-	inp.min = 0;
-	inp.max = 1;
-	inp.step = 0.01;
-	inp.type = "range";
-	inp.setAttribute("style", `height:5px !important;
+		var inp = dialog.appendChild(document.createElement("input"));
+		inp.min = 0;
+		inp.max = 1;
+		inp.step = 0.01;
+		inp.type = "range";
+		inp.setAttribute("style", `height:5px !important;
   width:85% !important;
   webkit-appearance: none !important;
   accent-color:#6F8DE1 !important;
@@ -365,25 +543,19 @@ outline:none !important;
 margin-left:7.5% !important;
 display:block !important;
 `)
-	inp.addEventListener("input", () => {
-		d1.innerHTML = (inp.value * 100).toFixed() + "%";
-		canvas.style.opacity = inp.value;
-		opacity = inp.value;
-	})
-	dialog.addEventListener("click", e => {
-		const dialogDimensions = dialog.getBoundingClientRect()
-		if (
-			e.clientX < dialogDimensions.left ||
-			e.clientX > dialogDimensions.right ||
-			e.clientY < dialogDimensions.top ||
-			e.clientY > dialogDimensions.bottom
-		) {
-			dialog.close()
-		}
-	})
-	GM_registerMenuCommand("调整透明度", function() {
+		inp.addEventListener("input", () => {
+			d1.innerHTML = (inp.value * 100).toFixed() + "%";
+			canvas.style.opacity = inp.value;
+			opacity = inp.value;
+		})
+		var d2 = dialog.appendChild(document.createElement("div"))
+		d2.setAttribute("style", `
+margin-top:20px !important;
+font-size:` + fontSize.replace(/px/, "") / 1.3 + "px")
+		d2.innerText = "设置仅对本次当前网页生效，保存设置请单击菜单中 保存当前设置";
 		dialog.showModal();
-		document.body.focus()
+		dialog.focus();
+		dialog.blur();
 		inp.value = canvas.style.opacity;
 		d1.innerHTML = (inp.value * 100).toFixed() + "%";
 	})
@@ -467,42 +639,11 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 		GM_deleteValue("skin");
 	})
 	GM_registerMenuCommand("更换皮肤", function() {
-		return new Promise((resolve, reject) => {
-			const input = document.createElement('input');
-			input.type = 'file';
-			input.accept = 'image/png';
-			input.style.display = 'none';
-			input.multiple = false;
-			input.addEventListener('change', (event) => {
-				const file = event.target.files[0];
-				if (!file) {
-					reject(new Error('No file selected'));
-					return;
-				}
-				if (file.type !== 'image/png') {
-					reject(new Error('Only PNG files are allowed'));
-					return;
-				}
-				const reader = new FileReader();
-				reader.onload = (e) => {
-					try {
-						const base64 = e.target.result;
-						skinViewer.loadSkin(base64);
-						skin = base64;
-						resolve(base64);
-					} catch (error) {
-						reject(error);
-					}
-				};
-				reader.onerror = (error) => reject(error);
-				reader.readAsDataURL(file);
-			});
-			document.body.appendChild(input);
-			input.click();
-			setTimeout(() => {
-				document.body.removeChild(input);
-			}, 200)
-		});
+		createSkinPickerDialog(false, `选择皮肤 如需保存请点击菜单中 保存当前设置`)
+
+		dialog.showModal();
+		dialog.focus();
+		dialog.blur();
 	})
 
 })();

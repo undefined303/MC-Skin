@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         MC Skin
+// @name         MC-Skin
 // @namespace    https://viayoo.com/
 // @version      1.0
 // @description  在网页里添加一个MC小人

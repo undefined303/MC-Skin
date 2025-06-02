@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         MC Skin
+// @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      2.0
+// @version      2.1
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license MIT
@@ -27,6 +27,7 @@
 		return;
 	}
 	console.log("%cMcSkin.js", "color:orange");
+	var defaultRotation = GM_getValue("defaultRotation", -0.25);
 	const box = document.createElement("div");
 	document.documentElement.append(box);
 	const shadow = box.attachShadow({
@@ -167,7 +168,7 @@ margin-right:10px;
 													const reader = new FileReader();
 													reader.onloadend = function() {
 														skinViewer.loadSkin(reader.result);
-                                                        skin = reader.result;
+														skin = reader.result;
 														if (isSave) {
 															GM_setValue("skin", reader.result);
 														}
@@ -271,7 +272,7 @@ margin-top:20px;
 		// Always add an angle for cape around the x axis
 		const basicCapeRotationX = Math.PI * 0.06;
 		player.cape.rotation.x = Math.sin(t) * 0.01 + basicCapeRotationX;
-		player.rotation.y = -0.25;
+		player.rotation.y = defaultRotation;
 		addAnimation(player, pr)
 	});
 	skinViewer.animation = idleAnimation;
@@ -447,7 +448,7 @@ margin-top:20px;
 			if (!progress0) {
 				progress0 = progress;
 			}
-			player.rotation.y = -0.25;
+			player.rotation.y = defaultRotation;
 			const t = (progress - progress0) * 20;
 			player.skin.rightArm.rotation.x = -0.4537860552 * 2 + 2 * Math.sin(t + Math.PI) * 0.3;
 			const basicArmRotationZ = 0.01 * Math.PI + 0.06;
@@ -592,6 +593,11 @@ font-size:` + fontSize.replace(/px/, "") / 1.3 + "px")
 				const deltaY = clientY - startY;
 				element.style.left = `${initialLeft + pxToVW(deltaX)}vw`;
 				element.style.top = `${initialTop + pxToVH(deltaY)}vh`;
+				if ((initialLeft + pxToVW(deltaX)) + pxToVW(0.5 * (getComputedStyle(element).width.replace(/px/, ""))) >= 50) {
+					defaultRotation = -Math.abs(defaultRotation);
+				} else {
+					defaultRotation = Math.abs(defaultRotation);
+				}
 			};
 			const addEvent = (target, type, handler) => {
 				moveListeners.push({
@@ -628,6 +634,7 @@ font-size:` + fontSize.replace(/px/, "") / 1.3 + "px")
 		GM_setValue("positionTop", positionTop);
 		GM_setValue("opacity", opacity);
 		GM_setValue("skin", skin);
+		GM_setValue("defaultRotation", defaultRotation);
 		alert(`[MC Skin]
 保存成功，当前参数为：
 ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"+GM_getValue("positionTop")+"\n":""}${GM_getValue("opacity")?"透明度"+GM_getValue("opacity")+"\n":""}${GM_getValue("skin")?"皮肤"+GM_getValue("skin"):""}`)
@@ -637,6 +644,7 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 		GM_deleteValue("positionTop");
 		GM_deleteValue("opacity");
 		GM_deleteValue("skin");
+		GM_deleteValue("defaultRotation");
 	})
 	GM_registerMenuCommand("更换皮肤", function() {
 		createSkinPickerDialog(false, `选择皮肤 如需保存请点击菜单中 保存当前设置`)

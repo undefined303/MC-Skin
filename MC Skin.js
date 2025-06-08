@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      2.1
+// @version      2.2
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license MIT
@@ -374,6 +374,55 @@ margin-top:20px;
 		return num <= min ? min : num >= max ? max : num;
 	}
 
+	function stopAddedAnimation() {
+		_t0 = undefined;
+		_t1 = undefined;
+		z0 = undefined;
+		progress1 = undefined;
+		progress2 = undefined;
+		progress3 = undefined;
+		endRotationX = undefined;
+		progress4 = undefined;
+		progress5 = undefined;
+		endRotationXR = undefined;
+		endRotationXL = undefined;
+		addAnimation = () => {}
+	}
+	var waveTimeout;
+	var isTimeoutSetted = false;
+	var _t0;
+	var _t1;
+	var z0;
+
+	function handleWaveAnimation() {
+		function wave() {
+			addAnimation = (player, progress) => {
+				_t0 = !_t0 ? progress : _t0;
+				const t = (progress - _t0) * 2.1 * Math.PI;
+				if (t <= Math.PI * 4) {
+					player.skin.leftArm.rotation.x = -2.21;
+					player.skin.leftArm.rotation.z = Math.cos(t) * 0.5;
+				} else {
+					_t1 = _t1 == undefined ? progress : _t1;
+					z0 = z0 == undefined ? player.skin.leftArm.rotation.z : z0;
+					var t1 = Math.cos((progress - _t1) * 15);
+					if (t1 < 0) {
+						t1 = 0;
+						stopAddedAnimation();
+						return;
+					}
+					player.skin.leftArm.rotation.x = -2.21 * t1
+					player.skin.leftArm.rotation.z = z0 * t1;
+
+				}
+			}
+		}
+		if (!isTimeoutSetted) {
+			waveTimeout = setTimeout(wave, 800);
+		}
+		isTimeoutSetted = true;
+	}
+
 	function handleMove(x, y) {
 		handleAfkAnimation();
 		const canvasRect = canvas.getBoundingClientRect();
@@ -383,8 +432,18 @@ margin-top:20px;
 		raycaster.ray.intersectPlane(plane, pointOfIntersection);
 		head.lookAt(pointOfIntersection);
 	}
+
 	window.addEventListener("mousemove", e => {
-		handleMove(e.clientX, e.clientY)
+		var x = e.clientX;
+		var y = e.clientY;
+		handleMove(x, y);
+		const canvasRect = canvas.getBoundingClientRect();
+		if (x >= canvasRect.left && x <= canvasRect.left + canvasRect.width && y >= canvasRect.top && y <= canvasRect.top + canvasRect.height) {
+			handleWaveAnimation();
+		} else {
+			clearTimeout(waveTimeout);
+			isTimeoutSetted = false;
+		}
 	});
 	window.addEventListener("touchstart", e => {
 		handleMove(e.targetTouches[0].clientX, e.targetTouches[0].clientY)
@@ -392,6 +451,7 @@ margin-top:20px;
 	window.addEventListener("touchmove", e => {
 		handleMove(e.targetTouches[0].clientX, e.targetTouches[0].clientY)
 	});
+
 	var progress1;
 	var progress2;
 	var progress3;
@@ -413,7 +473,7 @@ margin-top:20px;
 				}
 				progress2 = undefined;
 				player.skin.rightArm.rotation.x = -0.1 + (Math.floor((progress - progress1) / (Math.PI / (13 * k))) % 2 == 0 ? (-Math.acos(Math.cos((k * 13 * (progress - progress1 - Math.PI / (13 * k))))) * 0.5) : -0.5);
-
+				player.skin.leftArm.rotation.x = 0;
 			}
 		} else {
 			addAnimation = function(player, progress) {
@@ -422,6 +482,7 @@ margin-top:20px;
 				}
 				progress1 = undefined;
 				player.skin.rightArm.rotation.x = -0.1 + ((Math.floor((progress - progress2) / (Math.PI / (6 * 2 * k))) % 2 == 0) ? (-Math.abs(Math.asin(Math.sin(6 * k * (progress - progress2)))) * 0.8) : 0);
+				player.skin.leftArm.rotation.x = 0;
 			}
 		}
 		ws = setTimeout(() => {
@@ -434,6 +495,7 @@ margin-top:20px;
 				if (player.skin.rightArm.rotation.x == 0) {
 					progress3 = undefined;
 					endRotationX = undefined;
+					stopAddedAnimation();
 				}
 			}
 			progress1 = undefined;
@@ -459,9 +521,8 @@ margin-top:20px;
 			player.skin.leftArm.position.z = Math.cos(t) * 0.3;
 			player.skin.leftArm.position.x = 5 - Math.cos(t) * 0.05;
 			if (t >= Math.PI * 2) {
-				addAnimation = function(player, progress) {
-					player.skin.rightArm.rotation.x = 0;
-				}
+				player.skin.rightArm.rotation.x = 0;
+				stopAddedAnimation();
 			}
 		}
 	}
@@ -510,10 +571,7 @@ margin-top:20px;
 				player.skin.rightArm.rotation.z = Math.min(4 * (progress - progress5) + 0.27, 0);
 				player.skin.leftArm.rotation.z = Math.max(-4 * (progress - progress5) - 0.27, 0);
 				if (player.skin.rightArm.rotation.x == 0 && player.skin.leftArm.rotation.x == 0 && player.skin.rightArm.rotation.z == 0 && player.skin.leftArm.rotation.z == 0) {
-					progress5 = undefined;
-					endRotationXR = undefined;
-					endRotationXL = undefined;
-					addAnimation = () => {};
+					stopAddedAnimation();
 				}
 			}
 			progress4 = undefined;

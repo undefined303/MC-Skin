@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      2.3
+// @version      2.4
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license MIT
@@ -472,6 +472,8 @@ margin-top:20px;
 			addAnimation = function(player, progress) {
 				if (!progress1) {
 					progress1 = progress;
+					isTimeoutSetted = true;
+					clearTimeout(waveTimeout);
 				}
 				progress2 = undefined;
 				player.skin.rightArm.rotation.x = -0.1 + (Math.floor((progress - progress1) / (Math.PI / (13 * k))) % 2 == 0 ? (-Math.acos(Math.cos((k * 13 * (progress - progress1 - Math.PI / (13 * k))))) * 0.5) : -0.5);
@@ -481,6 +483,8 @@ margin-top:20px;
 			addAnimation = function(player, progress) {
 				if (!progress2) {
 					progress2 = progress;
+					isTimeoutSetted = true;
+					clearTimeout(waveTimeout);
 				}
 				progress1 = undefined;
 				player.skin.rightArm.rotation.x = -0.1 + ((Math.floor((progress - progress2) / (Math.PI / (6 * 2 * k))) % 2 == 0) ? (-Math.abs(Math.asin(Math.sin(6 * k * (progress - progress2)))) * 0.8) : 0);
@@ -511,6 +515,8 @@ margin-top:20px;
 		addAnimation = function(player, progress) {
 			if (!progress0) {
 				progress0 = progress;
+				isTimeoutSetted = true;
+				clearTimeout(waveTimeout);
 			}
 			player.rotation.y = defaultRotation;
 			const t = (progress - progress0) * 20;
@@ -552,6 +558,8 @@ margin-top:20px;
 		addAnimation = function(player, progress) {
 			if (!progress4) {
 				progress4 = progress;
+				isTimeoutSetted = true;
+				clearTimeout(waveTimeout);
 			}
 			var pr = progress - progress4;
 			player.skin.leftArm.rotation.z = -0.27;

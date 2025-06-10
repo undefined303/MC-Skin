@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      2.2
+// @version      2.3
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license MIT

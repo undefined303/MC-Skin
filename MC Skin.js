@@ -386,6 +386,8 @@ margin-top:20px;
 		progress5 = undefined;
 		endRotationXR = undefined;
 		endRotationXL = undefined;
+		isTimeoutSetted = true;
+		clearTimeout(waveTimeout);
 		addAnimation = () => {}
 	}
 	var waveTimeout;

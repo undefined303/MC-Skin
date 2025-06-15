@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      2.4
+// @version      2.5
 // @description  在网页里添加一个MC小人
 // @author       undefined303
-// @license MIT
+// @license      MIT
+// @homepage     https://greasyfork.org/zh-CN/scripts/537235
 // @run-at       document-end
 // @match        *
 // @include      *
@@ -16,7 +17,7 @@
 // @grant        GM_xmlhttpRequest
 // @require      data:text/javascript,const%20origdef%20%3D%20window.define%3B
 // @require      data:text/javascript,window.define%20%3D%20undefined%3B
-// @require    https://fastly.jsdelivr.net/npm/skinview3d@3.4.1/bundles/skinview3d.bundle.min.js
+// @require      https://fastly.jsdelivr.net/npm/skinview3d@3.4.1/bundles/skinview3d.bundle.min.js
 // @require      https://fastly.jsdelivr.net/npm/three@0.128.0/build/three.min.js
 // @require      data:text/javascript,window.define%20%3D%20origdef%3B
 // ==/UserScript==
@@ -130,10 +131,11 @@ border-bottom:2px solid black;
 background:transparent;
 margin-right:10px;
 `)
+		let upload;
 		nameInp.addEventListener("input", function() {
 			if (nameInp.value != "") {
 				uploadBtn.innerText = "获取皮肤";
-				uploadBtn.onclick = function() {
+				upload = function() {
 					let span1 = dialog.appendChild(document.createElement("span"));
 					span1.style.fontSize = fontSize;
 					span1.innerText = `获取中 ...`;
@@ -182,8 +184,7 @@ margin-right:10px;
 												}
 											});
 										} catch (e) {
-											alert(`
-                                   ${ e.message.includes('default') ? e.message : 'API请求失败，无法获取皮肤信息，请检查ID是否正确，或者检查网络连接'}`);
+											alert(`${ e.message.includes('default') ? e.message : 'API请求失败，无法获取皮肤信息，请检查ID是否正确，或者检查网络连接'}`);
 											dialog.close();
 										}
 									},
@@ -193,8 +194,7 @@ margin-right:10px;
 									}
 								});
 							} catch (e) {
-								alert(`${e.responseText ? JSON.parse(e.responseText).errorMessage : 'API请求失败，无法获取皮肤信息，请检查ID是否正确，或者检查网络连接'}
-                    `);
+								alert(`${e.responseText ? JSON.parse(e.responseText).errorMessage : 'API请求失败，无法获取皮肤信息，请检查ID是否正确，或者检查网络连接'}`);
 								dialog.close();
 							}
 						},
@@ -204,6 +204,7 @@ margin-right:10px;
 						}
 					});
 				}
+				uploadBtn.onclick = upload;
 			} else {
 				uploadBtn.innerText = "上传皮肤";
 				uploadBtn.onclick = function() {
@@ -224,7 +225,12 @@ margin-top:20px;
 `)
 		uploadBtn.style.fontSize = fontSize;
 		uploadBtn.innerText = "上传皮肤";
-
+		nameInp.addEventListener("keydown", function(e) {
+			if (e.keyCode == 13) {
+				e.preventDefault();
+				upload();
+			}
+		})
 	}
 	if (!skin) {
 		createSkinPickerDialog(true, `[MC Skin] 初次使用需要上传皮肤文件`);

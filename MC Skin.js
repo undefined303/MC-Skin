@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      2.5
+// @version      3.0
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license      MIT
-// @homepage     https://greasyfork.org/zh-CN/scripts/537235
+// @homepageURL  https://greasyfork.org/zh-CN/scripts/537235
 // @run-at       document-end
 // @match        *
 // @include      *
@@ -22,6 +22,11 @@
 // @require      data:text/javascript,window.define%20%3D%20origdef%3B
 // ==/UserScript==
 (function() {
+	const key = encodeURIComponent('MC skin：执行判断');
+	if (window[key]) {
+		return;
+	}
+	window[key] = true;
 	'use strict'
 	var skin = GM_getValue("skin", null);
 	if (self != top) {
@@ -644,6 +649,8 @@ font-size:` + fontSize.replace(/px/, "") / 1.3 + "px")
 
 		function makeDraggable(element) {
 			element.style.pointerEvents = "auto";
+			var width = getComputedStyle(element).width.replace(/px/, "") * 1;
+			var height = getComputedStyle(element).height.replace(/px/, "") * 1;
 			let isDragging = false;
 			let startX, startY, initialLeft, initialTop;
 			const parsePosition = (type) => {
@@ -665,12 +672,19 @@ font-size:` + fontSize.replace(/px/, "") / 1.3 + "px")
 				if (!isDragging) return;
 				const deltaX = clientX - startX;
 				const deltaY = clientY - startY;
-				element.style.left = `${initialLeft + pxToVW(deltaX)}vw`;
-				element.style.top = `${initialTop + pxToVH(deltaY)}vh`;
-				if ((initialLeft + pxToVW(deltaX)) + pxToVW(0.5 * (getComputedStyle(element).width.replace(/px/, ""))) >= 50) {
+				var isRightSide = (initialLeft + pxToVW(deltaX)) + pxToVW(0.5 * width) >= 50;
+				var isBottomSide = (initialTop + pxToVH(deltaY)) + pxToVH(0.5 * height) >= 50;
+				if (isRightSide) {
 					defaultRotation = -Math.abs(defaultRotation);
+					element.style.left = `calc(${Math.min((initialLeft + pxToVW(deltaX) + width/window.innerWidth*100),(window.innerWidth+width/2)/window.innerWidth*100,(window.innerHeight+width/2)/window.innerHeight*100)}vw - ${width}px)`;
 				} else {
 					defaultRotation = Math.abs(defaultRotation);
+					element.style.left = `${Math.max((initialLeft + pxToVW(deltaX)),-width/2/window.innerWidth*100,-width/2/window.innerHeight*100)}vw`;
+				}
+				if (isBottomSide) {
+					element.style.top = `calc(${Math.min((initialTop + pxToVH(deltaY) + height/window.innerHeight*100),(window.innerHeight+height/2)/window.innerHeight*100,(window.innerWidth+height/2)/window.innerWidth*100)}vh - ${height}px)`;
+				} else {
+					element.style.top = `${Math.max((initialTop + pxToVH(deltaY)),-height/2/window.innerHeight*100,-height/2/window.innerWidth*100)}vh`;
 				}
 			};
 			const addEvent = (target, type, handler) => {
@@ -727,5 +741,32 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 		dialog.focus();
 		dialog.blur();
 	})
+	var fullscreenAddition = GM_getValue("fullscreenAddition", false);
+	var fc1, fc2;
+	var fullscreenListener = () => {
+		if (document.fullscreenElement) {
+			document.fullscreenElement.append(canvas);
+		} else {
+			document.body.append(canvas);
+		}
+	}
+	var fc1Click = () => {
+		document.addEventListener('fullscreenchange', fullscreenListener);
+		GM_unregisterMenuCommand(fc1);
+		fc2 = GM_registerMenuCommand("点击禁用在全屏时显示皮肤", fc2Click);
+		GM_setValue("fullscreenAddition", true);
+	}
+	var fc2Click = () => {
+		document.removeEventListener('fullscreenchange', fullscreenListener);
+		GM_unregisterMenuCommand(fc2);
+		fc1 = GM_registerMenuCommand("点击启用在全屏时显示皮肤", fc1Click);
+		GM_setValue("fullscreenAddition", false);
+	}
+	if (!fullscreenAddition) {
+		fc1 = GM_registerMenuCommand("点击启用在全屏时显示皮肤", fc1Click);
+	} else {
+		document.addEventListener('fullscreenchange', fullscreenListener);
+		fc2 = GM_registerMenuCommand("点击禁用在全屏时显示皮肤", fc2Click);
+	}
 
 })();

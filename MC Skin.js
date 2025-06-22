@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      3.1
+// @version      3.2
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license      MIT
@@ -431,16 +431,18 @@ margin-top:20px;
 	});
 	var addAnimation = function() {}
 	var idleAnimation = new skinview3d.FunctionAnimation((player, pr) => {
-		const t = pr * 2;
-		// Arm swing
-		const basicArmRotationZ = Math.PI * 0.02;
-		player.skin.leftArm.rotation.z = Math.cos(t) * 0.03 + basicArmRotationZ;
-		player.skin.rightArm.rotation.z = Math.cos(t + Math.PI) * 0.03 - basicArmRotationZ;
-		// Always add an angle for cape around the x axis
-		const basicCapeRotationX = Math.PI * 0.06;
-		player.cape.rotation.x = Math.sin(t) * 0.01 + basicCapeRotationX;
-		player.rotation.y = defaultRotation;
-		addAnimation(player, pr)
+		if (canvas.style.display != "none") {
+			const t = pr * 2;
+			// Arm swing
+			const basicArmRotationZ = Math.PI * 0.02;
+			player.skin.leftArm.rotation.z = Math.cos(t) * 0.03 + basicArmRotationZ;
+			player.skin.rightArm.rotation.z = Math.cos(t + Math.PI) * 0.03 - basicArmRotationZ;
+			// Always add an angle for cape around the x axis
+			const basicCapeRotationX = Math.PI * 0.06;
+			player.cape.rotation.x = Math.sin(t) * 0.01 + basicCapeRotationX;
+			player.rotation.y = defaultRotation;
+			addAnimation(player, pr)
+		}
 	});
 	skinViewer.animation = idleAnimation;
 	skinViewer.controls.enablePan = false;
@@ -1069,5 +1071,13 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 		}
 	}
 	createIframeListener(document);
-
+	document.addEventListener("visibilitychange", () => {
+		if (document.hidden) {
+			canvas.style.display = "none";
+		} else {
+			canvas.style.display = "block";
+		}
+	}, {
+		passive: true
+	});
 })();

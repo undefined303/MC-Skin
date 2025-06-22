@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      3.0
+// @version      3.1
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license      MIT
@@ -29,7 +29,161 @@
 	window[key] = true;
 	'use strict'
 	var skin = GM_getValue("skin", null);
+	var iframeIndex = -1;
+
+	function getIframeIndex() {
+		var messageListener;
+		return new Promise((resolve, reject) => {
+			messageListener = (e) => {
+				if (e.data.type == "McSkinIframeIsGettingPosition") {
+					//4.回答，统计index
+					iframeIndex++;
+					if (e.data.data) {
+						resolve();
+					}
+				}
+			}
+			window.addEventListener("message", messageListener, {
+				passive: true
+			})
+		}).then(() => {
+			var iframeIndex0 = iframeIndex;
+			iframeIndex = -1;
+			window.removeEventListener("message", messageListener)
+			return iframeIndex0;
+		})
+	}
+	window.addEventListener("message", async function(e) {
+		if (e.data == "McSkinIframeGetPosition") {
+			//2.收到获取位置信息请求，发送询问谁需要位置信息
+			var iframes = [...document.getElementsByTagName("iframe")]
+			iframes.forEach((ele) => {
+
+				ele.contentWindow.postMessage("McSkinIframeGetPositionJudgment", "*")
+
+			})
+			var iframeIndex = await getIframeIndex()
+			var bcr = iframes[iframeIndex].getBoundingClientRect();
+			//5.发送位置信息
+			iframes[iframeIndex].contentWindow.postMessage({
+				type: "McSkinIframePositionData",
+				data: {
+					x: bcr.left,
+					y: bcr.top
+				}
+			}, "*")
+		}
+	}, {
+		passive: true
+	})
+
+
 	if (self != top) {
+
+		var isGettingPosition = false;
+
+		function messageReceiver(e) {
+			if (e.data == 'McSkinIframeGetPositionJudgment') {
+				//3.收到询问信息，发送是否需要
+				window.parent.postMessage({
+					type: "McSkinIframeIsGettingPosition",
+					data: isGettingPosition
+				}, '*');
+				isGettingPosition = false;
+			}
+		}
+
+		window.addEventListener('message', messageReceiver, {
+			passive: true
+		})
+		var positionData;
+		var getIframePosition = function() {
+			//1.发送请求获取位置信息
+			window.parent.postMessage("McSkinIframeGetPosition", '*');
+			return new Promise((resolve, reject) => {
+				isGettingPosition = true;
+
+				function positionMessageReceiver(e) {
+					if (e.data.type == "McSkinIframePositionData") {
+						//6.接受位置信息
+						positionData = e.data.data;
+
+						window.removeEventListener("message", positionMessageReceiver);
+						resolve();
+					}
+				}
+				window.addEventListener("message", positionMessageReceiver, {
+					passive: true
+				});
+			}).then(() => {
+				return positionData;
+			})
+		}
+
+		async function pushEventMessage(e) {
+			let data = {};
+			var positionData = await getIframePosition();
+			var x = positionData.x;
+			var y = positionData.y;
+			data.type = e.type;
+			e.clientX ? data.clientX = e.clientX + x : null;
+			e.clientY ? data.clientY = e.clientY + y : null;
+			if (e.targetTouches) {
+				data.targetTouches = [{
+					clientX: e.targetTouches[0].clientX + x,
+					clientY: e.targetTouches[0].clientY + y
+				}]
+			}
+			e.wheelDelta ? data.wheelDelta = e.wheelDelta : null;
+			e.detail ? data.detail = e.detail : null;
+			window.parent.postMessage({
+				type: "McSkinIframeEventData",
+				data: data
+			}, "*");
+		}
+
+		window.addEventListener("mousemove", pushEventMessage, {
+			passive: true
+		});
+		window.addEventListener("touchstart", pushEventMessage, {
+			passive: true
+		});
+		window.addEventListener("touchmove", pushEventMessage);
+		window.addEventListener("wheel", pushEventMessage, {
+			passive: true
+		})
+		window.addEventListener("mousedown", pushEventMessage, {
+			passive: true
+		})
+		document.addEventListener('keydown', pushEventMessage, {
+			passive: true
+		});
+		window.addEventListener("message", async (e) => {
+			if (e.data.type == "McSkinIframeEventData") {
+				let data = {};
+				var positionData = await getIframePosition();
+				var x = positionData.x;
+				var y = positionData.y;
+				data.type = e.data.data.type;
+				e.data.data.clientX ? data.clientX = e.data.data.clientX + x : null;
+				e.data.data.clientY ? data.clientY = e.data.data.clientY + y : null;
+				if (e.data.data.targetTouches) {
+					data.targetTouches = [{
+						clientX: e.data.data.targetTouches[0].clientX + x,
+						clientY: e.data.data.targetTouches[0].clientY + y
+					}]
+				}
+				e.data.data.wheelDelta ? data.wheelDelta = e.data.data.wheelDelta : null;
+				e.data.data.detail ? data.detail = e.data.data.detail : null;
+				window.parent.postMessage({
+					type: "McSkinIframeEventData",
+					data: data
+				}, "*");
+			}
+		}, {
+			passive: true
+		})
+
 		return;
 	}
 	console.log("%cMcSkin.js", "color:orange");
@@ -68,6 +222,8 @@ font-size:0px;
 		) {
 			dialog.close()
 		}
+	}, {
+		passive: true
 	})
 	var removeAllChild = function(node) {
 		while (node.hasChildNodes()) {
@@ -446,7 +602,7 @@ margin-top:20px;
 		head.lookAt(pointOfIntersection);
 	}
 
-	window.addEventListener("mousemove", e => {
+	function mouseMoveFunction(e) {
 		var x = e.clientX;
 		var y = e.clientY;
 		handleMove(x, y);
@@ -457,12 +613,19 @@ margin-top:20px;
 			clearTimeout(waveTimeout);
 			isTimeoutSetted = false;
 		}
+	}
+	window.addEventListener("mousemove", mouseMoveFunction, {
+		passive: true
 	});
 	window.addEventListener("touchstart", e => {
 		handleMove(e.targetTouches[0].clientX, e.targetTouches[0].clientY)
+	}, {
+		passive: true
 	});
 	window.addEventListener("touchmove", e => {
 		handleMove(e.targetTouches[0].clientX, e.targetTouches[0].clientY)
+	}, {
+		passive: true
 	});
 
 	var progress1;
@@ -519,8 +682,10 @@ margin-top:20px;
 			progress2 = undefined;
 		}, 300)
 	}
-	window.onmousewheel = document.onmousewheel = handleMouseWheelEvent;
-	window.onmousedown = function() {
+	window.addEventListener("wheel", handleMouseWheelEvent, {
+		passive: true
+	})
+	var mousedownFunction = function() {
 		handleAfkAnimation();
 		var progress0
 		addAnimation = function(player, progress) {
@@ -545,6 +710,9 @@ margin-top:20px;
 			}
 		}
 	}
+	window.addEventListener("mousedown", mousedownFunction, {
+		passive: true
+	})
 	var timeout;
 	var progress4;
 	var progress5;
@@ -602,6 +770,8 @@ margin-top:20px;
 	document.addEventListener('keydown', () => {
 		handleAfkAnimation();
 		handleInputEvent();
+	}, {
+		passive: true
 	});
 
 	GM_registerMenuCommand("调整透明度", function() {
@@ -751,7 +921,9 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 		}
 	}
 	var fc1Click = () => {
-		document.addEventListener('fullscreenchange', fullscreenListener);
+		document.addEventListener('fullscreenchange', fullscreenListener, {
+			passive: true
+		});
 		GM_unregisterMenuCommand(fc1);
 		fc2 = GM_registerMenuCommand("点击禁用在全屏时显示皮肤", fc2Click);
 		GM_setValue("fullscreenAddition", true);
@@ -765,8 +937,137 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 	if (!fullscreenAddition) {
 		fc1 = GM_registerMenuCommand("点击启用在全屏时显示皮肤", fc1Click);
 	} else {
-		document.addEventListener('fullscreenchange', fullscreenListener);
+		document.addEventListener('fullscreenchange', fullscreenListener, {
+			passive: true
+		});
 		fc2 = GM_registerMenuCommand("点击禁用在全屏时显示皮肤", fc2Click);
 	}
+
+	function addIframeEventListener(iframe) {
+		function pushEventMessage(e) {
+			let data = {};
+			var rectObject = iframe.getBoundingClientRect();
+			var x = rectObject.left;
+			var y = rectObject.top;
+			data.type = e.type;
+			e.clientX ? data.clientX = e.clientX + x : null;
+			e.clientY ? data.clientY = e.clientY + y : null;
+			if (e.targetTouches) {
+				data.targetTouches = [{
+					clientX: e.targetTouches[0].clientX + x,
+					clientY: e.targetTouches[0].clientY + y
+				}]
+			}
+			e.wheelDelta ? data.wheelDelta = e.wheelDelta : null;
+			e.detail ? data.detail = e.detail : null;
+			iframe.contentWindow.parent.postMessage({
+				type: "McSkinIframeEventData",
+				data: data
+			}, "*");
+		}
+		iframe.contentWindow.addEventListener("mousemove", pushEventMessage, {
+			passive: true
+		});
+		iframe.contentWindow.addEventListener("touchstart", pushEventMessage, {
+			passive: true
+		});
+		iframe.contentWindow.addEventListener("touchmove", pushEventMessage);
+		iframe.contentWindow.addEventListener("wheel", pushEventMessage, {
+			passive: true
+		})
+		iframe.contentWindow.addEventListener("mousedown", pushEventMessage, {
+			passive: true
+		})
+		iframe.contentDocument.addEventListener('keydown', pushEventMessage, {
+			passive: true
+		});
+		createIframeListener(iframe.contentDocument);
+		iframe.contentWindow.addEventListener("message", (e) => {
+			if (e.data.type == "McSkinIframeEventData") {
+				let data = {};
+				var rectObject = iframe.getBoundingClientRect();
+				var x = rectObject.left;
+				var y = rectObject.top;
+				data.type = e.data.data.type;
+				e.data.data.clientX ? data.clientX = e.data.data.clientX + x : null;
+				e.data.data.clientY ? data.clientY = e.data.data.clientY + y : null;
+				if (e.data.data.targetTouches) {
+					data.targetTouches = [{
+						clientX: e.data.data.targetTouches[0].clientX + x,
+						clientY: e.data.data.targetTouches[0].clientY + y
+					}]
+				}
+				e.data.data.wheelDelta ? data.wheelDelta = e.data.data.wheelDelta : null;
+				e.data.data.detail ? data.detail = e.data.data.detail : null;
+				iframe.contentWindow.parent.postMessage({
+					type: "McSkinIframeEventData",
+					data: data
+				}, "*");
+			}
+		}, {
+			passive: true
+		})
+
+	}
+
+	window.addEventListener("message", (e) => {
+		if (e.data.type == "McSkinIframeEventData") {
+			let event = e.data.data;
+			switch (event.type) {
+				case "mousemove":
+					mouseMoveFunction(event);
+					break;
+				case "touchstart":
+				case "touchmove":
+					handleMove(event.targetTouches[0].clientX, event.targetTouches[0].clientY);
+					break;
+				case "wheel":
+					handleMouseWheelEvent(event);
+					break
+				case "mousedown":
+					mousedownFunction(event);
+					break;
+				case "keydown":
+					handleAfkAnimation();
+					handleInputEvent();
+					break;
+			}
+		}
+	}, {
+		passive: true
+	});
+
+	function createIframeListener(document) {
+
+		[...document.getElementsByTagName("iframe")].forEach((iframe) => {
+			if (iframe.contentDocument && iframe.contentDocument.readyState == "complete") {
+				addIframeEventListener(iframe);
+			} else {
+				iframe.addEventListener("load", () => {
+					addIframeEventListener(iframe);
+				}, {
+					passive: true
+				})
+			}
+
+		})
+		var nativeDCE = document.createElement;
+		document.createElement = function(...arg) {
+			var element = nativeDCE.call(document, ...arg);
+			if (arg[0].toLowerCase() == "iframe") {
+				if (element.contentDocument && element.contentDocument.readyState == "complete") {
+					addIframeEventListener(element);
+				} else {
+					element.addEventListener("load", () => {
+						addIframeEventListener(element);
+					}, {
+						passive: true
+					})
+				}
+			}
+			return element;
+		}
+	}
+	createIframeListener(document);
 
 })();

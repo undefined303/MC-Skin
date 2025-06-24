@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      3.2
+// @version      3.3
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license      MIT
@@ -374,7 +374,9 @@ margin-right:10px;
 			}
 		})
 		let uploadBtn = wrap.appendChild(document.createElement("button"));
-		uploadBtn.onclick = uploadSkin;
+		uploadBtn.onclick = () => {
+			uploadSkin(isSave)
+		};
 		uploadBtn.setAttribute("style", `
 color:white;
 background:#6F8DE1;

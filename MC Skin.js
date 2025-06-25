@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      3.3
+// @version      3.4
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license      MIT
@@ -34,23 +34,29 @@
 	function getIframeIndex() {
 		var messageListener;
 		return new Promise((resolve, reject) => {
+			var timeout = setTimeout(() => {
+				reject();
+			}, 500);
 			messageListener = (e) => {
 				if (e.data.type == "McSkinIframeIsGettingPosition") {
 					//4.回答，统计index
 					iframeIndex++;
 					if (e.data.data) {
-						resolve();
+						resolve(iframeIndex);
+						clearTimeout(timeout);
 					}
 				}
 			}
 			window.addEventListener("message", messageListener, {
 				passive: true
 			})
-		}).then(() => {
-			var iframeIndex0 = iframeIndex;
+		}).then((data) => {
 			iframeIndex = -1;
 			window.removeEventListener("message", messageListener)
-			return iframeIndex0;
+			return data;
+		}).catch(() => {
+			console.error("iframe获取index信息超时");
+			return "error";
 		})
 	}
 	window.addEventListener("message", async function(e) {
@@ -101,6 +107,9 @@
 			//1.发送请求获取位置信息
 			window.parent.postMessage("McSkinIframeGetPosition", '*');
 			return new Promise((resolve, reject) => {
+				var timeout = setTimeout(() => {
+					reject();
+				}, 500);
 				isGettingPosition = true;
 
 				function positionMessageReceiver(e) {
@@ -110,6 +119,7 @@
 
 						window.removeEventListener("message", positionMessageReceiver);
 						resolve();
+						clearTimeout(timeout);
 					}
 				}
 				window.addEventListener("message", positionMessageReceiver, {
@@ -117,12 +127,18 @@
 				});
 			}).then(() => {
 				return positionData;
+			}).catch(() => {
+				console.error("iframe获取位置信息超时");
+				return "error";
 			})
 		}
 
 		async function pushEventMessage(e) {
 			let data = {};
 			var positionData = await getIframePosition();
+			if (positionData == "error") {
+				return;
+			}
 			var x = positionData.x;
 			var y = positionData.y;
 			data.type = e.type;
@@ -1076,8 +1092,10 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 	document.addEventListener("visibilitychange", () => {
 		if (document.hidden) {
 			canvas.style.display = "none";
+			skinViewer.animation.paused = true;
 		} else {
 			canvas.style.display = "block";
+			skinViewer.animation.paused = false;
 		}
 	}, {
 		passive: true

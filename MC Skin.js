@@ -29,21 +29,31 @@
 	window[key] = true;
 	'use strict'
 	var skin = GM_getValue("skin", null);
-	var iframeIndex = -1;
+	//var iframeIndexMap = new Map();
 
-	function getIframeIndex() {
+	function getIframeIndex(id, max) {
 		var messageListener;
 		return new Promise((resolve, reject) => {
+			var iframeIndex = -1;
 			var timeout = setTimeout(() => {
 				reject();
 			}, 500);
+			///if(iframeIndexMap.get(id)==undefined){
+			//iframeIndexMap.set(id,-1);
+			// }
 			messageListener = (e) => {
 				if (e.data.type == "McSkinIframeIsGettingPosition") {
 					//4.回答，统计index
-					iframeIndex++;
-					if (e.data.data) {
-						resolve(iframeIndex);
-						clearTimeout(timeout);
+					//   console.log('4.回答，统计index',"获取发起id",id,"收到消息id",e.data.id)
+					if (id == e.data.id) {
+						iframeIndex++;
+						if (e.data.data) {
+							resolve(iframeIndex);
+							clearTimeout(timeout);
+						} else if (iframeIndex > max) {
+							reject();
+							clearTimeout(timeout);
+						}
 					}
 				}
 			}
@@ -51,7 +61,7 @@
 				passive: true
 			})
 		}).then((data) => {
-			iframeIndex = -1;
+			//iframeIndex = -1;
 			window.removeEventListener("message", messageListener)
 			return data;
 		}).catch(() => {
@@ -60,23 +70,39 @@
 		})
 	}
 	window.addEventListener("message", async function(e) {
-		if (e.data == "McSkinIframeGetPosition") {
+		if (e.data.type == "McSkinIframeGetPosition") {
 			//2.收到获取位置信息请求，发送询问谁需要位置信息
+			// console.log("2.收到获取位置信息请求，发送询问谁需要位置信息",e.data.id)
 			var iframes = [...document.getElementsByTagName("iframe")]
 			iframes.forEach((ele) => {
 
-				ele.contentWindow.postMessage("McSkinIframeGetPositionJudgment", "*")
+				ele.contentWindow.postMessage({
+					type: "McSkinIframeGetPositionJudgment",
+					id: e.data.id
+				}, "*")
 
 			})
-			var iframeIndex = await getIframeIndex()
+			var iframeIndex = await getIframeIndex(e.data.id, iframes.length - 1);
+			if (iframeIndex == "error") {
+				iframes.forEach((ele) => {
+					ele.contentWindow.postMessage({
+						type: "McSkinIframeGetPositionError",
+						id: e.data.id
+					}, "*")
+				})
+				return;
+			}
+			console.log(iframeIndex)
 			var bcr = iframes[iframeIndex].getBoundingClientRect();
 			//5.发送位置信息
+			// console.log("5.发送位置信息")
 			iframes[iframeIndex].contentWindow.postMessage({
 				type: "McSkinIframePositionData",
 				data: {
 					x: bcr.left,
 					y: bcr.top
-				}
+				},
+				id: e.data.id
 			}, "*")
 		}
 	}, {
@@ -89,11 +115,13 @@
 		var isGettingPosition = false;
 
 		function messageReceiver(e) {
-			if (e.data == 'McSkinIframeGetPositionJudgment') {
+			if (e.data.type == 'McSkinIframeGetPositionJudgment') {
 				//3.收到询问信息，发送是否需要
+				//     console.log("3.收到询问信息，发送是否需要",e.data.id,isGettingPosition,document)
 				window.parent.postMessage({
 					type: "McSkinIframeIsGettingPosition",
-					data: isGettingPosition
+					data: isGettingPosition,
+					id: e.data.id
 				}, '*');
 				isGettingPosition = false;
 			}
@@ -104,8 +132,13 @@
 		})
 		var positionData;
 		var getIframePosition = function() {
+			var id = Date.now() + Math.random();
 			//1.发送请求获取位置信息
-			window.parent.postMessage("McSkinIframeGetPosition", '*');
+			//  console.log('1.发送请求获取位置信息',id,document)
+			window.parent.postMessage({
+				type: "McSkinIframeGetPosition",
+				id: id
+			}, '*');
 			return new Promise((resolve, reject) => {
 				var timeout = setTimeout(() => {
 					reject();
@@ -113,14 +146,28 @@
 				isGettingPosition = true;
 
 				function positionMessageReceiver(e) {
-					if (e.data.type == "McSkinIframePositionData") {
+					if (e.data.type == "McSkinIframePositionData" && e.data.id == id) {
 						//6.接受位置信息
+						// console.log("6.接受位置信息")
 						positionData = e.data.data;
 
 						window.removeEventListener("message", positionMessageReceiver);
+						if (positionData == "error") {
+
+							reject();
+							clearTimeout(timeout);
+							return;
+						}
 						resolve();
 						clearTimeout(timeout);
 					}
+					if (e.data.type == "McSkinIframePositionError" && e.data.id == id) {
+						reject();
+						clearTimeout(timeout);
+						console.log("收到失败信号")
+						return;
+					}
+
 				}
 				window.addEventListener("message", positionMessageReceiver, {
 					passive: true

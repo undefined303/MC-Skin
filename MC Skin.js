@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      3.7
+// @version      3.8
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license      MIT
@@ -295,9 +295,10 @@ border-radius:10px !important;
 width:min(70vw,350px) !important;
 max-width:100vw !important;
 text-align:center !important;
- padding:40px 0px !important;
+ padding:40px 5px !important;
 box-shadow:0px 0px 7px 1px rgba(0,0,0,.3) !important;
 backdrop-filter: blur(50px);
+-webkit-backdrop-filter: blur(50px);
 background-color: rgba(255, 255, 255, 0.8);
 outline:none !important;
 font-size:0px;
@@ -382,6 +383,7 @@ font-size:0px;
 		nameInp.setAttribute("style", `
 outline:none;
 border:none;
+border-radius:0;
 border-bottom:2px solid black;
 background:transparent;
 margin-right:10px;
@@ -886,7 +888,6 @@ font-size:` + fontSize)
 		inp.type = "range";
 		inp.setAttribute("style", `height:5px !important;
   width:85% !important;
-  webkit-appearance: none !important;
   accent-color:#6F8DE1 !important;
   vertical-align:middle !important;
 outline:none !important;

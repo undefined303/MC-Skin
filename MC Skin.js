@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      3.6
+// @version      3.7
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license      MIT
@@ -136,7 +136,6 @@
 		window.addEventListener('message', messageReceiver, {
 			passive: true
 		})
-		var positionData;
 		var getIframePosition = function() {
 			var id = Date.now() + Math.random();
 			//1.发送请求获取位置信息
@@ -154,14 +153,14 @@
 				function positionMessageReceiver(e) {
 					if (e.data.type == "McSkinIframePositionData" && e.data.id == id) {
 						//6.接受位置信息
-						positionData = e.data.data;
+						var positionData = e.data.data;
 						window.removeEventListener("message", positionMessageReceiver);
 						if (positionData == "error") {
 							reject();
 							clearTimeout(timeout);
 							return;
 						}
-						resolve();
+						resolve(positionData);
 						clearTimeout(timeout);
 					}
 					if (e.data.type == "McSkinIframePositionError" && e.data.id == id) {
@@ -174,8 +173,8 @@
 				window.addEventListener('message', positionMessageReceiver, {
 					passive: true
 				})
-			}).then(() => {
-				return positionData;
+			}).then((data) => {
+				return data;
 			}).catch(() => {
 				console.error("iframe获取位置信息超时");
 				return "error";
@@ -183,7 +182,7 @@
 		}
 		var lock = false;
 
-		function getIframePosition0() {
+		function getIframePositionDebounceFunction() {
 			return new Promise((resolve, reject) => {
 				if (!lock) {
 					lock = true;
@@ -204,6 +203,7 @@
 			}).then((data) => {
 				return data;
 			}).catch(() => {
+				//locked or timeout
 				return "error"
 			})
 		}
@@ -211,7 +211,7 @@
 			let data = {};
 			if (e.type == "touchstart" || e.type == "touchmove" || e.type == "mousemove") {
 				let lock = false;
-				var positionData = await getIframePosition0();
+				var positionData = await getIframePositionDebounceFunction();
 				if (positionData == "error") {
 					return;
 				}
@@ -698,13 +698,13 @@ margin-top:20px;
 		raycaster.setFromCamera(mouse, skinViewer.camera);
 		raycaster.ray.intersectPlane(plane, pointOfIntersection);
 		head.lookAt(pointOfIntersection);
+		return canvasRect;
 	}
 
 	function mouseMoveFunction(e) {
 		var x = e.clientX;
 		var y = e.clientY;
-		handleMove(x, y);
-		const canvasRect = canvas.getBoundingClientRect();
+		const canvasRect = handleMove(x, y);
 		if (x >= canvasRect.left && x <= canvasRect.left + canvasRect.width && y >= canvasRect.top && y <= canvasRect.top + canvasRect.height) {
 			handleWaveAnimation();
 		} else {
@@ -912,8 +912,10 @@ font-size:` + fontSize.replace(/px/, "") / 1.3 + "px")
 	var moveListeners = [];
 	var moveMenuId;
 	var finishMoveMenuId;
+	var isMoving = false;
 
 	function move() {
+		isMoving = true;
 		GM_unregisterMenuCommand(moveMenuId);
 		finishMoveMenuId = GM_registerMenuCommand("完成移动", finishMove);
 
@@ -978,6 +980,7 @@ font-size:` + fontSize.replace(/px/, "") / 1.3 + "px")
 	}
 
 	function finishMove() {
+		isMoving = false;
 		moveListeners.forEach((item) => {
 			item.target.removeEventListener(item.type, item.handler);
 			canvas.style.border = "none";
@@ -994,8 +997,10 @@ font-size:` + fontSize.replace(/px/, "") / 1.3 + "px")
 		GM_setValue("positionTop", positionTop);
 		GM_setValue("opacity", opacity);
 		GM_setValue("skin", skin);
-		GM_setValue("defaultRotation", defaultRotation);
-		alert(`[MC Skin]
+		if (!isMoving) {
+			GM_setValue("defaultRotation", defaultRotation);
+		}
+		alert(`[MC Skin]${isMoving?"\n⚠️ 当前移动位置未保存，如需保存应当点击 完成移动 后再保存当前设置":""}
 保存成功，当前参数为：
 ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"+GM_getValue("positionTop")+"\n":""}${GM_getValue("opacity")?"透明度"+GM_getValue("opacity")+"\n":""}${GM_getValue("skin")?"皮肤"+GM_getValue("skin"):""}`)
 	})

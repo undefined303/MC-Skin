@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      3.8
+// @version      3.9
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license      MIT
@@ -1050,6 +1050,26 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 		});
 		fc2 = GM_registerMenuCommand("点击禁用在全屏时显示皮肤", fc2Click);
 	}
+	var canvasScale = 1;
+	var resizeFunction = () => {
+		const canvasRect = canvas.getBoundingClientRect();
+		if (window.innerHeight <= 1.5 * h) {
+			var deltaTop = 0;
+			if (/px/.test(canvas.style.top)) {
+				deltaTop = h * (1 - canvasScale);
+			}
+			canvas.style.transformOrigin = `50% ${window.innerHeight/2-canvasRect.top+deltaTop}px`;
+			canvasScale = window.innerHeight / (1.5 * h);
+			canvas.style.transform = `scale(${canvasScale})`;
+		} else {
+			canvasScale = 1;
+			canvas.style.transform = "scale(1)";
+		}
+	}
+	resizeFunction = rafThrottle(resizeFunction);
+	window.addEventListener("resize", resizeFunction, {
+		passive: true
+	})
 
 	function addIframeEventListener(iframe) {
 		function pushEventMessage(e) {

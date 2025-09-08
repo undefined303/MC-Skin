@@ -5,7 +5,7 @@
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license      MIT
-// @homepageURL  https://greasyfork.cc/zh-CN/scripts/537235
+// @homepageURL  https://greasyfork.org/zh-CN/scripts/537235
 // @run-at       document-end
 // @match        *
 // @include      *

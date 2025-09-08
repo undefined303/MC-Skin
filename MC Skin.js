@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      3.9
+// @version      4.0
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license      MIT
-// @homepageURL  https://greasyfork.org/zh-CN/scripts/537235
+// @homepageURL  https://greasyfork.cc/zh-CN/scripts/537235
 // @run-at       document-end
 // @match        *
 // @include      *
@@ -16,7 +16,7 @@
 // @grant        GM_deleteValue
 // @grant        GM_xmlhttpRequest
 // @require      data:text/javascript,const%20origdef%20%3D%20window.define%3B
-// @require      data:text/javascript,window.define%20%3D%20undefined%3B
+// @require      data:text/javascript,window.define%20%3F%20window.define%20%3D%20undefined%3A%20null%3B
 // @require      https://fastly.jsdelivr.net/npm/skinview3d@3.4.1/bundles/skinview3d.bundle.min.js
 // @require      https://fastly.jsdelivr.net/npm/three@0.128.0/build/three.min.js
 // @require      data:text/javascript,window.define%20%3D%20origdef%3B
@@ -222,7 +222,7 @@
 			data.type = e.type;
 			e.clientX ? data.clientX = e.clientX + x : null;
 			e.clientY ? data.clientY = e.clientY + y : null;
-			if (e.targetTouches) {
+			if (e.targetTouches && e.type != "touchend" && e.type != "touchcancel") {
 				data.targetTouches = [{
 					clientX: e.targetTouches[0].clientX + x,
 					clientY: e.targetTouches[0].clientY + y
@@ -242,7 +242,15 @@
 		window.addEventListener("touchstart", pushEventMessage, {
 			passive: true
 		});
-		window.addEventListener("touchmove", pushEventMessage);
+		window.addEventListener("touchmove", pushEventMessage, {
+			passive: true
+		});
+		window.addEventListener("touchend", pushEventMessage, {
+			passive: true
+		});
+		window.addEventListener("touchcancel", pushEventMessage, {
+			passive: true
+		});
 		window.addEventListener("wheel", pushEventMessage, {
 			passive: true
 		})
@@ -253,7 +261,7 @@
 			passive: true
 		});
 		window.addEventListener("message", async (e) => {
-			if (e.data.type == "McSkinIframeEventData") {
+			if (e.data.type == "McSkinIframeEventData" && e.source != window.parent && e.source != top) {
 				let data = {};
 				var positionData = await getIframePosition();
 				var x = positionData.x;
@@ -261,7 +269,7 @@
 				data.type = e.data.data.type;
 				e.data.data.clientX ? data.clientX = e.data.data.clientX + x : null;
 				e.data.data.clientY ? data.clientY = e.data.data.clientY + y : null;
-				if (e.data.data.targetTouches) {
+				if (e.data.data.targetTouches && data.type != "touchend" && data.type != "touchcancel") {
 					data.targetTouches = [{
 						clientX: e.data.data.targetTouches[0].clientX + x,
 						clientY: e.data.data.targetTouches[0].clientY + y
@@ -520,6 +528,7 @@ margin-top:20px;
 	canvas.style.zIndex = 999999999999;
 	canvas.style.pointerEvents = "none";
 	canvas.style.opacity = opacity;
+	canvas.style.background = "transparent";
 	document.body.appendChild(canvas);
 	let skinViewer = new skinview3d.SkinViewer({
 		canvas: canvas,
@@ -678,6 +687,8 @@ margin-top:20px;
 					if (t1 < 0) {
 						t1 = 0;
 						stopAddedAnimation();
+						player.skin.leftArm.rotation.x = 0
+						player.skin.leftArm.rotation.z = 0;
 						return;
 					}
 					player.skin.leftArm.rotation.x = -2.21 * t1
@@ -703,9 +714,9 @@ margin-top:20px;
 		return canvasRect;
 	}
 
-	function mouseMoveFunction(e) {
-		var x = e.clientX;
-		var y = e.clientY;
+	function moveFunction(e) {
+		var x = e.targetTouches ? e.targetTouches[0].clientX : e.clientX;
+		var y = e.targetTouches ? e.targetTouches[0].clientY : e.clientY;
 		const canvasRect = handleMove(x, y);
 		if (x >= canvasRect.left && x <= canvasRect.left + canvasRect.width && y >= canvasRect.top && y <= canvasRect.top + canvasRect.height) {
 			handleWaveAnimation();
@@ -714,19 +725,29 @@ margin-top:20px;
 			isTimeoutSetted = false;
 		}
 	}
-	mouseMoveFunction = rafThrottle(mouseMoveFunction)
-	window.addEventListener("mousemove", mouseMoveFunction, {
+	moveFunction = rafThrottle(moveFunction);
+	window.addEventListener("mousemove", moveFunction, {
 		passive: true
 	});
 	window.addEventListener("touchstart", e => {
-		handleMove(e.targetTouches[0].clientX, e.targetTouches[0].clientY)
+		moveFunction
 	}, {
 		passive: true
 	});
-	var touchMoveFunction = rafThrottle((e) => {
-		handleMove(e.targetTouches[0].clientX, e.targetTouches[0].clientY)
-	})
-	window.addEventListener("touchmove", touchMoveFunction, {
+
+	window.addEventListener("touchmove", moveFunction, {
+		passive: true
+	});
+
+	function finishMoveFunction() {
+		clearTimeout(waveTimeout);
+		isTimeoutSetted = false;
+	}
+	finishMoveFunction = rafThrottle(finishMoveFunction)
+	window.addEventListener("touchend", finishMoveFunction, {
+		passive: true
+	});
+	window.addEventListener("touchcancel", finishMoveFunction, {
 		passive: true
 	});
 
@@ -1080,7 +1101,7 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 			data.type = e.type;
 			e.clientX ? data.clientX = e.clientX + x : null;
 			e.clientY ? data.clientY = e.clientY + y : null;
-			if (e.targetTouches) {
+			if (e.targetTouches && e.type != "touchend" && e.type != "touchcancel") {
 				data.targetTouches = [{
 					clientX: e.targetTouches[0].clientX + x,
 					clientY: e.targetTouches[0].clientY + y
@@ -1100,6 +1121,8 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 			passive: true
 		});
 		iframe.contentWindow.addEventListener("touchmove", pushEventMessage);
+		iframe.contentWindow.addEventListener("touchend", pushEventMessage);
+		iframe.contentWindow.addEventListener("touchcancel", pushEventMessage);
 		iframe.contentWindow.addEventListener("wheel", pushEventMessage, {
 			passive: true
 		})
@@ -1111,7 +1134,7 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 		});
 		createIframeListener(iframe.contentDocument);
 		iframe.contentWindow.addEventListener("message", (e) => {
-			if (e.data.type == "McSkinIframeEventData") {
+			if (e.data.type == "McSkinIframeEventData" && e.source != iframe.contentWindow.parent && e.source != top) {
 				let data = {};
 				var rectObject = iframe.getBoundingClientRect();
 				var x = rectObject.left;
@@ -1119,7 +1142,7 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 				data.type = e.data.data.type;
 				e.data.data.clientX ? data.clientX = e.data.data.clientX + x : null;
 				e.data.data.clientY ? data.clientY = e.data.data.clientY + y : null;
-				if (e.data.data.targetTouches) {
+				if (e.data.data.targetTouches && data.type != "touchend" && data.type != "touchcancel") {
 					data.targetTouches = [{
 						clientX: e.data.data.targetTouches[0].clientX + x,
 						clientY: e.data.data.targetTouches[0].clientY + y
@@ -1142,11 +1165,13 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 			let event = e.data.data;
 			switch (event.type) {
 				case "mousemove":
-					mouseMoveFunction(event);
-					break;
 				case "touchstart":
 				case "touchmove":
-					touchMoveFunction(event);
+					moveFunction(event);
+					break;
+				case "touchend":
+				case "touchcancel":
+					finishMoveFunction();
 					break;
 				case "wheel":
 					handleMouseWheelEvent(event);
@@ -1180,9 +1205,10 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 
 		})
 		var nativeDCE = document.createElement;
-		document.createElement = function(...arg) {
-			var element = nativeDCE.call(document, ...arg);
-			if (arg[0].toLowerCase() == "iframe") {
+		document.createElement = function(tagName, options) {
+			if (typeof tagName != "string") return nativeDCE.call(document, tagName, options);
+			var element = options ? nativeDCE.call(document, tagName, options) : nativeDCE.call(document, tagName);
+			if (tagName.toLowerCase() == "iframe") {
 				if (element.contentDocument && element.contentDocument.readyState == "complete") {
 					addIframeEventListener(element);
 				} else {

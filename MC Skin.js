@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      4.0
+// @version      4.1
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license      MIT
@@ -237,28 +237,36 @@
 		}
 
 		window.addEventListener("mousemove", pushEventMessage, {
-			passive: true
+			passive: true,
+			capture: true
 		});
 		window.addEventListener("touchstart", pushEventMessage, {
-			passive: true
+			passive: true,
+			capture: true
 		});
 		window.addEventListener("touchmove", pushEventMessage, {
-			passive: true
+			passive: true,
+			capture: true
 		});
 		window.addEventListener("touchend", pushEventMessage, {
-			passive: true
+			passive: true,
+			capture: true
 		});
 		window.addEventListener("touchcancel", pushEventMessage, {
-			passive: true
+			passive: true,
+			capture: true
 		});
 		window.addEventListener("wheel", pushEventMessage, {
-			passive: true
+			passive: true,
+			capture: true
 		})
 		window.addEventListener("mousedown", pushEventMessage, {
-			passive: true
+			passive: true,
+			capture: true
 		})
 		document.addEventListener('keydown', pushEventMessage, {
-			passive: true
+			passive: true,
+			capture: true
 		});
 		window.addEventListener("message", async (e) => {
 			if (e.data.type == "McSkinIframeEventData" && e.source != window.parent && e.source != top) {
@@ -687,7 +695,7 @@ margin-top:20px;
 					if (t1 < 0) {
 						t1 = 0;
 						stopAddedAnimation();
-						player.skin.leftArm.rotation.x = 0
+						player.skin.leftArm.rotation.x = 0;
 						player.skin.leftArm.rotation.z = 0;
 						return;
 					}
@@ -727,16 +735,19 @@ margin-top:20px;
 	}
 	moveFunction = rafThrottle(moveFunction);
 	window.addEventListener("mousemove", moveFunction, {
-		passive: true
+		passive: true,
+		capture: true
 	});
 	window.addEventListener("touchstart", e => {
 		moveFunction
 	}, {
-		passive: true
+		passive: true,
+		capture: true
 	});
 
 	window.addEventListener("touchmove", moveFunction, {
-		passive: true
+		passive: true,
+		capture: true
 	});
 
 	function finishMoveFunction() {
@@ -745,10 +756,12 @@ margin-top:20px;
 	}
 	finishMoveFunction = rafThrottle(finishMoveFunction)
 	window.addEventListener("touchend", finishMoveFunction, {
-		passive: true
+		passive: true,
+		capture: true
 	});
 	window.addEventListener("touchcancel", finishMoveFunction, {
-		passive: true
+		passive: true,
+		capture: true
 	});
 
 	var progress1;
@@ -806,7 +819,8 @@ margin-top:20px;
 		}, 300)
 	}
 	window.addEventListener("wheel", handleMouseWheelEvent, {
-		passive: true
+		passive: true,
+		capture: true
 	})
 	var mousedownFunction = function() {
 		handleAfkAnimation();
@@ -834,7 +848,8 @@ margin-top:20px;
 		}
 	}
 	window.addEventListener("mousedown", mousedownFunction, {
-		passive: true
+		passive: true,
+		capture: true
 	})
 	var timeout;
 	var progress4;
@@ -894,7 +909,8 @@ margin-top:20px;
 		handleAfkAnimation();
 		handleInputEvent();
 	}, {
-		passive: true
+		passive: true,
+		capture: true
 	});
 
 	GM_registerMenuCommand("调整透明度", function() {
@@ -989,7 +1005,10 @@ font-size:` + fontSize.replace(/px/, "") / 1.3 + "px")
 					type: type,
 					handler: handler
 				})
-				target.addEventListener(type, handler);
+				target.addEventListener(type, handler, {
+					passive: true,
+					capture: true
+				});
 			}
 			addEvent(element, 'mousedown', e => startDrag(e.clientX, e.clientY));
 			addEvent(element, 'touchstart', e => startDrag(e.touches[0].clientX, e.touches[0].clientY));
@@ -1115,22 +1134,36 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 			}, "*");
 		}
 		iframe.contentWindow.addEventListener("mousemove", pushEventMessage, {
-			passive: true
+			passive: true,
+			capture: true
 		});
 		iframe.contentWindow.addEventListener("touchstart", pushEventMessage, {
-			passive: true
+			passive: true,
+			capture: true
 		});
-		iframe.contentWindow.addEventListener("touchmove", pushEventMessage);
-		iframe.contentWindow.addEventListener("touchend", pushEventMessage);
-		iframe.contentWindow.addEventListener("touchcancel", pushEventMessage);
+		iframe.contentWindow.addEventListener("touchmove", pushEventMessage, {
+			passive: true,
+			capture: true
+		});
+		iframe.contentWindow.addEventListener("touchend", pushEventMessage, {
+			passive: true,
+			capture: true
+		});
+		iframe.contentWindow.addEventListener("touchcancel", pushEventMessage, {
+			passive: true,
+			capture: true
+		});
 		iframe.contentWindow.addEventListener("wheel", pushEventMessage, {
-			passive: true
+			passive: true,
+			capture: true
 		})
 		iframe.contentWindow.addEventListener("mousedown", pushEventMessage, {
-			passive: true
+			passive: true,
+			capture: true
 		})
 		iframe.contentDocument.addEventListener('keydown', pushEventMessage, {
-			passive: true
+			passive: true,
+			capture: true
 		});
 		createIframeListener(iframe.contentDocument);
 		iframe.contentWindow.addEventListener("message", (e) => {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      4.1
+// @version      4.2
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license      MIT
@@ -344,7 +344,6 @@ font-size:0px;
 	skin = GM_getValue("skin", skin);
 
 	var uploadSkin = function(isSave) {
-		dialog.close();
 		return new Promise((resolve, reject) => {
 			let input = document.createElement('input');
 			input.type = 'file';
@@ -361,6 +360,7 @@ font-size:0px;
 					reject(new Error('Only PNG files are allowed'));
 					return;
 				}
+				dialog.close();
 				let reader = new FileReader();
 				reader.onload = (e) => {
 					try {
@@ -500,6 +500,71 @@ margin-top:20px;
 `)
 		uploadBtn.style.fontSize = fontSize;
 		uploadBtn.innerText = "上传皮肤";
+
+		uploadBtn.addEventListener("dragover", (e) => {
+			e.preventDefault();
+		})
+
+		uploadBtn.addEventListener("dragenter", (e) => {
+			e.preventDefault();
+			var originalText = uploadBtn.innerText;
+			uploadBtn.style.opacity = ".6";
+			uploadBtn.style.border = "1px dashed white";
+			uploadBtn.innerText = "+";
+			uploadBtn.style.width = `calc(4 * ${fontSize} + 20px)`;
+			uploadBtn.style.fontWeight = 500;
+			uploadBtn.style.fontSize = `calc(1.193 * ${fontSize})`;
+
+			function dragLeaveHandler(e) {
+				e.preventDefault();
+				uploadBtn.style.opacity = "1";
+				uploadBtn.style.border = "none";
+				uploadBtn.innerText = originalText;
+				uploadBtn.style.fontWeight = "normal";
+				uploadBtn.style.fontSize = fontSize;
+				uploadBtn.removeEventListener("dragleave", dragLeaveHandler);
+				uploadBtn.removeEventListener("drop", dropHandler);
+			}
+
+			function dropHandler(e) {
+				dragLeaveHandler(e);
+				var file;
+				if (e.dataTransfer.items) {
+					if (e.dataTransfer.items[0].kind === "file") {
+						file = e.dataTransfer.items[0].getAsFile();
+					}
+				} else {
+					file = e.dataTransfer.files[0]
+				}
+				return new Promise((resolve, reject) => {
+					if (file.type !== 'image/png') {
+						reject(new Error('Only PNG files are allowed'));
+						return;
+					}
+					dialog.close();
+					let reader = new FileReader();
+					reader.onload = (e) => {
+						try {
+							const base64 = e.target.result;
+							skinViewer.loadSkin(base64);
+							skin = base64;
+							if (isSave) {
+								GM_setValue("skin", base64);
+							}
+							resolve(base64);
+						} catch (error) {
+							reject(error);
+						}
+					};
+					reader.onerror = (error) => reject(error);
+					reader.readAsDataURL(file);
+				});
+
+			}
+			uploadBtn.addEventListener("drop", dropHandler)
+			uploadBtn.addEventListener("dragleave", dragLeaveHandler);
+		})
+
 		nameInp.addEventListener("keydown", function(e) {
 			if (e.keyCode == 13) {
 				e.preventDefault();

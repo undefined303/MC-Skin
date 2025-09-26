@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      4.2
+// @version      4.3
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license      MIT
@@ -644,11 +644,11 @@ margin-top:20px;
 		addAnimation = (pl, pr) => {
 			var kT = 13.5;
 			var sin0 = (x) => {
-				var r = Math.pow(Math.abs(Math.sin(x)), 1 / 1.5)
-				return Math.sin(x) > 0 ? r : -r
+				var r = Math.pow(Math.abs(Math.sin(x)), 1 / 1.5);
+				return Math.sin(x) > 0 ? r : -r;
 			}
 			var kD = 0.25;
-			var t1 = Math.abs(sin0(pr / 2 * kT))
+			var t1 = Math.abs(sin0(pr / 2 * kT));
 			pl.skin.body.rotation.x = 0.4537860552 * (1 - kD * t1);
 			pl.skin.body.position.z = 1.3256181 * (1 - kD * t1) - 3.4500310377 * (1 - kD * t1);
 			pl.skin.body.position.y = -6 - 2.103677462 * (1 - kD * t1);
@@ -663,21 +663,21 @@ margin-top:20px;
 			pl.skin.rightArm.position.y = pl.skin.leftArm.position.y;
 			pl.skin.rightLeg.position.z = -3.4500310377 * (1 - kD * t1);
 			pl.skin.leftLeg.position.z = pl.skin.rightLeg.position.z;
-			var mD = 1.5
-			var t = sin0(pr * kT) * mD
-			pl.skin.leftLeg.rotation.z = -Math.asin((pl.skin.leftLeg.position.x - 1.9) / 12)
-			pl.skin.leftLeg.position.x = t + 1.9
-			pl.skin.rightLeg.rotation.z = pl.skin.leftLeg.rotation.z
-			pl.skin.rightLeg.position.x = t - 1.9
-			pl.skin.body.position.x = t / 2
-			pl.skin.leftArm.position.x = t / 2 + 5 - 0.5 * sin0(Math.max(pr - 0.25 / kT, 0) * kT)
-			pl.skin.rightArm.position.x = t / 2 - 5 - 0.5 * sin0(Math.max(pr - 0.25 / kT, 0) * kT)
-			pl.skin.body.rotation.z = -pl.skin.rightLeg.rotation.z
-			pl.skin.leftArm.rotation.z = Math.asin(sin0(Math.max(pr - 0.25 / kT, 0) * kT) * mD / 12) + Math.PI / 18
-			pl.skin.rightArm.rotation.z = pl.skin.leftArm.rotation.z - 2 * Math.PI / 18
+			var mD = 1.5;
+			var t = sin0(pr * kT) * mD;
+			pl.skin.leftLeg.rotation.z = -Math.asin((pl.skin.leftLeg.position.x - 1.9) / 12);
+			pl.skin.leftLeg.position.x = t + 1.9;
+			pl.skin.rightLeg.rotation.z = pl.skin.leftLeg.rotation.z;
+			pl.skin.rightLeg.position.x = t - 1.9;
+			pl.skin.body.position.x = t / 2;
+			pl.skin.leftArm.position.x = t / 2 + 5 - 0.5 * sin0(Math.max(pr - 0.25 / kT, 0) * kT);
+			pl.skin.rightArm.position.x = t / 2 - 5 - 0.5 * sin0(Math.max(pr - 0.25 / kT, 0) * kT);
+			pl.skin.body.rotation.z = -pl.skin.rightLeg.rotation.z;
+			pl.skin.leftArm.rotation.z = Math.asin(sin0(Math.max(pr - 0.25 / kT, 0) * kT) * mD / 12) + Math.PI / 18;
+			pl.skin.rightArm.rotation.z = pl.skin.leftArm.rotation.z - 2 * Math.PI / 18;
 			pl.skin.leftArm.position.y = -2.5 * Math.sin(pl.skin.leftLeg.rotation.z) - 2 - 2.53943318 * (1 - kD * Math.abs(sin0(pr / 2 * kT)));
 			pl.skin.rightArm.position.y = 2.5 * Math.sin(pl.skin.rightLeg.rotation.z) - 2 - 2.53943318 * (1 - kD * Math.abs(sin0(pr / 2 * kT)));
-			pl.skin.head.rotation.z = pl.skin.body.rotation.z * 1 / 3
+			pl.skin.head.rotation.z = pl.skin.body.rotation.z * 1 / 3;
 		}
 	}
 	isPlayingAfkAnimation = false;
@@ -697,6 +697,7 @@ margin-top:20px;
 			pl.skin.rightLeg.rotation.set(0, 0, 0);
 			pl.skin.body.rotation.set(0, 0, 0);
 			pl.skin.head.position.y = 0;
+			pl.skin.body.position.x = 0;
 			pl.skin.body.position.y = -6;
 			pl.skin.body.position.z = 0;
 			pl.skin.rightArm.position.x = -5;

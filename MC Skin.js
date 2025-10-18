@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      4.3
+// @version      4.4
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license      MIT
@@ -50,6 +50,7 @@
 			}, 500);
 			messageListener = (e) => {
 				if (e.data.type == "McSkinIframeIndex") {
+					e.stopImmediatePropagation();
 					//4.读取index
 					if (id == e.data.id) {
 						var index = e.data.data;
@@ -77,6 +78,7 @@
 	}
 	window.addEventListener("message", async function(e) {
 		if (e.data.type == "McSkinIframeGetPosition") {
+			e.stopImmediatePropagation();
 			//2.收到获取位置信息请求，发送询问谁需要位置信息
 			var iframes = [...document.getElementsByTagName("iframe")]
 			var i = -1;
@@ -121,6 +123,7 @@
 
 		function messageReceiver(e) {
 			if (e.data.type == 'McSkinIframeGetPositionIndex') {
+				e.stopImmediatePropagation();
 				//3.收到询问信息，如果需要，回答index
 				if (isGettingPosition) {
 					window.parent.postMessage({
@@ -152,6 +155,7 @@
 
 				function positionMessageReceiver(e) {
 					if (e.data.type == "McSkinIframePositionData" && e.data.id == id) {
+						e.stopImmediatePropagation();
 						//6.接受位置信息
 						var positionData = e.data.data;
 						window.removeEventListener("message", positionMessageReceiver);
@@ -208,6 +212,7 @@
 			})
 		}
 		async function pushEventMessage(e) {
+			if (document.domain.split('.').slice(-2).join(".") == "githubusercontent.com") return;
 			let data = {};
 			if (e.type == "touchstart" || e.type == "touchmove" || e.type == "mousemove") {
 				let lock = false;
@@ -270,6 +275,7 @@
 		});
 		window.addEventListener("message", async (e) => {
 			if (e.data.type == "McSkinIframeEventData" && e.source != window.parent && e.source != top) {
+				e.stopImmediatePropagation();
 				let data = {};
 				var positionData = await getIframePosition();
 				var x = positionData.x;
@@ -1234,6 +1240,7 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 		createIframeListener(iframe.contentDocument);
 		iframe.contentWindow.addEventListener("message", (e) => {
 			if (e.data.type == "McSkinIframeEventData" && e.source != iframe.contentWindow.parent && e.source != top) {
+				e.stopImmediatePropagation();
 				let data = {};
 				var rectObject = iframe.getBoundingClientRect();
 				var x = rectObject.left;
@@ -1261,6 +1268,7 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 	}
 	var iframeEventHandler = (e) => {
 		if (e.data.type == "McSkinIframeEventData") {
+			e.stopImmediatePropagation();
 			let event = e.data.data;
 			switch (event.type) {
 				case "mousemove":

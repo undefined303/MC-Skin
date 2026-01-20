@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      4.5
+// @version      4.6
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license      MIT
@@ -818,6 +818,7 @@ margin-top:20px;
 			raycaster1.setFromCamera(mouse1, skinViewer.camera);
 			raycaster1.ray.intersectPlane(plane1, pointOfIntersection1);
 			skinViewer.playerObject.skin.lookAt(pointOfIntersection1);
+			skinViewer.playerObject.skin.rotation.z = 0;
 		}
 		return canvasRect;
 	}

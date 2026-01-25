@@ -1172,36 +1172,45 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 		dialog.focus();
 		dialog.blur();
 	})
+    // 默认为false，即全屏时隐藏小人
 	var fullscreenAddition = GM_getValue("fullscreenAddition", false);
 	var fc1, fc2;
-	var fullscreenListener = () => {
-		if (document.fullscreenElement) {
-			document.fullscreenElement.append(canvas);
-		} else {
-			document.body.append(canvas);
-		}
-	}
+    var fullscreenListener = () => {
+        if (document.fullscreenElement) {
+            // 进入全屏时：隐藏小人并暂停动画以节省性能
+            canvas.style.display = "none";
+            if (skinViewer && skinViewer.animation) {
+                skinViewer.animation.paused = true;
+            }
+        } else {
+            // 退出全屏时：恢复显示并继续动画
+            canvas.style.display = "block";
+            if (skinViewer && skinViewer.animation) {
+            skinViewer.animation.paused = false;
+            }
+        }
+    }
 	var fc1Click = () => {
 		document.addEventListener('fullscreenchange', fullscreenListener, {
 			passive: true
 		});
 		GM_unregisterMenuCommand(fc1);
-		fc2 = GM_registerMenuCommand("点击禁用在全屏时显示皮肤", fc2Click);
-		GM_setValue("fullscreenAddition", true);
+		fc2 = GM_registerMenuCommand("点击启用在全屏时显示皮肤", fc2Click);
+		GM_setValue("fullscreenAddition", false);
 	}
 	var fc2Click = () => {
 		document.removeEventListener('fullscreenchange', fullscreenListener);
 		GM_unregisterMenuCommand(fc2);
-		fc1 = GM_registerMenuCommand("点击启用在全屏时显示皮肤", fc1Click);
-		GM_setValue("fullscreenAddition", false);
+		fc1 = GM_registerMenuCommand("点击禁用在全屏时显示皮肤", fc1Click);
+		GM_setValue("fullscreenAddition", true);
 	}
-	if (!fullscreenAddition) {
-		fc1 = GM_registerMenuCommand("点击启用在全屏时显示皮肤", fc1Click);
+	if (fullscreenAddition) {
+		fc1 = GM_registerMenuCommand("点击禁用在全屏时显示皮肤", fc1Click);
 	} else {
 		document.addEventListener('fullscreenchange', fullscreenListener, {
 			passive: true
 		});
-		fc2 = GM_registerMenuCommand("点击禁用在全屏时显示皮肤", fc2Click);
+		fc2 = GM_registerMenuCommand("点击启用在全屏时显示皮肤", fc2Click);
 	}
 	var changeMouseModeMenu;
 	var changeMouseFollowMode = () => {
@@ -1413,3 +1422,4 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 		passive: true
 	});
 })();
+

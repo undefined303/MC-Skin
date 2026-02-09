@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      4.6
+// @version      4.7
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license      MIT
@@ -601,23 +601,32 @@ margin-top:20px;
 		}
 	}
 	var position = positionSetting.bottom;
+	var canvasContainer = document.createElement("div");
+	document.body.appendChild(canvasContainer);
+	canvasContainer.attachShadow({
+		mode: "open"
+	});
 	var canvas = document.createElement("canvas");
+	canvas.setAttribute("popover", "manual");
+	canvas.style.margin = "0";
+	canvas.style.border = "none";
 	canvas.style.position = "fixed";
 	positionLeft = GM_getValue("positionLeft", `calc(100vw - ${w}px)`);
 	positionTop = GM_getValue("positionTop", position.top);
 	canvas.style.top = positionTop;
 	canvas.style.left = positionLeft;
-	canvas.style.zIndex = 999999999999;
+	canvas.style.zIndex = "calc(infinity)";
 	canvas.style.pointerEvents = "none";
 	canvas.style.opacity = opacity;
 	canvas.style.background = "transparent";
-	document.body.appendChild(canvas);
+	canvasContainer.shadowRoot.appendChild(canvas);
 	let skinViewer = new skinview3d.SkinViewer({
 		canvas: canvas,
 		width: w,
 		height: h,
 		skin: skin
 	});
+	canvas.showPopover();
 	var addAnimation = function() {}
 	var idleAnimation = new skinview3d.FunctionAnimation((player, pr) => {
 		if (canvas.style.display != "none") {
@@ -1177,8 +1186,10 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 	var fullscreenListener = () => {
 		if (document.fullscreenElement) {
 			document.fullscreenElement.append(canvas);
+			canvas.showPopover();
 		} else {
 			document.body.append(canvas);
+			canvas.showPopover();
 		}
 	}
 	var fc1Click = () => {

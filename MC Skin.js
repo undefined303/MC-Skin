@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MC-Skin
 // @namespace    https://viayoo.com/
-// @version      4.7
+// @version      4.8
 // @description  在网页里添加一个MC小人
 // @author       undefined303
 // @license      MIT
@@ -1184,27 +1184,36 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 	var fullscreenAddition = GM_getValue("fullscreenAddition", false);
 	var fc1, fc2;
 	var fullscreenListener = () => {
-		if (document.fullscreenElement) {
-			document.fullscreenElement.append(canvas);
-			canvas.showPopover();
+		if (fullscreenAddition) {
+			if (document.fullscreenElement) {
+				document.fullscreenElement.append(canvas);
+				canvas.showPopover();
+			} else {
+				document.body.append(canvas);
+				canvas.showPopover();
+			}
 		} else {
-			document.body.append(canvas);
-			canvas.showPopover();
+			if (document.fullscreenElement) {
+				canvas.style.display = "none";
+			} else {
+				canvas.style.display = "block";
+			}
 		}
 	}
+	document.addEventListener('fullscreenchange', fullscreenListener, {
+		passive: true
+	});
 	var fc1Click = () => {
-		document.addEventListener('fullscreenchange', fullscreenListener, {
-			passive: true
-		});
 		GM_unregisterMenuCommand(fc1);
 		fc2 = GM_registerMenuCommand("点击禁用在全屏时显示皮肤", fc2Click);
-		GM_setValue("fullscreenAddition", true);
+		fullscreenAddition = true;
+		GM_setValue("fullscreenAddition", fullscreenAddition);
 	}
 	var fc2Click = () => {
-		document.removeEventListener('fullscreenchange', fullscreenListener);
 		GM_unregisterMenuCommand(fc2);
 		fc1 = GM_registerMenuCommand("点击启用在全屏时显示皮肤", fc1Click);
-		GM_setValue("fullscreenAddition", false);
+		fullscreenAddition = false;
+		GM_setValue("fullscreenAddition", fullscreenAddition);
 	}
 	if (!fullscreenAddition) {
 		fc1 = GM_registerMenuCommand("点击启用在全屏时显示皮肤", fc1Click);

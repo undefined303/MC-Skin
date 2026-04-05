@@ -1,26 +1,28 @@
 // ==UserScript==
-// @name         MC-Skin
-// @namespace    https://viayoo.com/
-// @version      4.8
-// @description  在网页里添加一个MC小人
-// @author       undefined303
-// @license      MIT
-// @homepageURL  https://greasyfork.org/zh-CN/scripts/537235
-// @run-at       document-end
-// @match        *
-// @include      *
-// @grant        GM_registerMenuCommand
-// @grant        GM_unregisterMenuCommand
-// @grant        GM_getValue
-// @grant        GM_setValue
-// @grant        GM_deleteValue
-// @grant        GM_xmlhttpRequest
-// @grant        GM_info
-// @require      data:text/javascript,const%20origdef%20%3D%20window.define%3B
-// @require      data:text/javascript,window.define%20%3F%20window.define%20%3D%20undefined%3A%20null%3B
-// @require      https://fastly.jsdelivr.net/npm/skinview3d@3.4.1/bundles/skinview3d.bundle.min.js
-// @require      https://fastly.jsdelivr.net/npm/three@0.128.0/build/three.min.js
-// @require      data:text/javascript,window.define%20%3D%20origdef%3B
+// @name            MC-Skin
+// @name:en         MC-Skin
+// @namespace       https://viayoo.com/
+// @version         4.9
+// @description     在网页里添加一个MC小人
+// @description:en  Add Minecraft skin in webpage
+// @author          undefined303
+// @license         MIT
+// @homepageURL     https://greasyfork.org/zh-CN/scripts/537235
+// @run-at          document-end
+// @match           *
+// @include         *
+// @grant           GM_registerMenuCommand
+// @grant           GM_unregisterMenuCommand
+// @grant           GM_getValue
+// @grant           GM_setValue
+// @grant           GM_deleteValue
+// @grant           GM_xmlhttpRequest
+// @grant           GM_info
+// @require         data:text/javascript,const%20origdef%20%3D%20window.define%3B
+// @require         data:text/javascript,window.define%20%3F%20window.define%20%3D%20undefined%3A%20null%3B
+// @require         https://fastly.jsdelivr.net/npm/skinview3d@3.4.1/bundles/skinview3d.bundle.min.js
+// @require         https://fastly.jsdelivr.net/npm/three@0.128.0/build/three.min.js
+// @require         data:text/javascript,window.define%20%3D%20origdef%3B
 // ==/UserScript==
 (function() {
 	const key = encodeURIComponent('MC skin：执行判断');
@@ -29,6 +31,65 @@
 	}
 	window[key] = true;
 	'use strict'
+
+	const string = {
+		"zh": {
+			"first_time_upload_tip": "[MC Skin] 初次使用需要上传皮肤文件",
+			"mojang_id_placeholder": "使用正版ID获取皮肤",
+			"upload_skin_button": "上传皮肤",
+			"fetch_skin_button": "获取皮肤",
+			"fetching_skin": "获取中 ...",
+			"skin_not_found": "未获取到皮肤",
+			"skin_load_error": "皮肤加载错误",
+			"api_request_failed": "API请求失败，无法获取皮肤信息，请检查ID是否正确，或者检查网络连接",
+			"menu_adjust_opacity": "调整透明度",
+			"dialog_opacity_note": "设置仅对本次当前网页生效，保存设置请单击菜单中 保存当前设置",
+			"menu_save_settings": "保存当前设置",
+			"menu_move": "移动",
+			"menu_finish_move": "完成移动",
+			"menu_change_skin": "更换皮肤",
+			"menu_enable_fullscreen_skin": "点击启用在全屏时显示皮肤",
+			"menu_disable_fullscreen_skin": "点击禁用在全屏时显示皮肤",
+			"menu_switch_mouse_java": "切换鼠标跟随至java版模式",
+			"menu_switch_mouse_bedrock": "切换鼠标跟随至基岩版模式",
+			"alert_move_not_saved": "\n⚠️ 当前移动位置未保存，如需保存应当点击 完成移动 后再保存当前设置",
+			"alert_save_success": "\n保存成功，当前参数为：\n",
+			"position": "位置",
+			"opacity": "透明度",
+			"skin": "皮肤",
+			"menu_reset_settings": "重置当前设置",
+			"dialog_change_skin_hint": "选择皮肤 如需保存请点击菜单中 保存当前设置"
+		},
+		"en": {
+			"first_time_upload_tip": "[MC Skin] Please upload a skin file for first-time use",
+			"mojang_id_placeholder": "Get skin using official ID",
+			"upload_skin_button": "Upload Skin",
+			"fetch_skin_button": "Fetch Skin",
+			"fetching_skin": "Fetching ...",
+			"skin_not_found": "Skin not found",
+			"skin_load_error": "Skin load error",
+			"api_request_failed": "API request failed. Unable to get skin info. Please check if the ID is correct or check your network connection.",
+			"menu_adjust_opacity": "Adjust Opacity",
+			"dialog_opacity_note": "Settings only apply to the current webpage. To save settings, please click 'Save Current Settings' in the menu.",
+			"menu_save_settings": "Save Current Settings",
+			"menu_move": "Move",
+			"menu_finish_move": "Finish Move",
+			"menu_change_skin": "Change Skin",
+			"menu_enable_fullscreen_skin": "Enable skin display in fullscreen",
+			"menu_disable_fullscreen_skin": "Disable skin display in fullscreen",
+			"menu_switch_mouse_java": "Switch mouse follow to Java Edition mode",
+			"menu_switch_mouse_bedrock": "Switch mouse follow to Bedrock Edition mode",
+			"alert_move_not_saved": "\n⚠️ Current move position not saved. Please click 'Finish Move' before saving settings.",
+			"alert_save_success": "\nSettings saved successfully. Current parameters:\n",
+			"position": "position",
+			"opacity": "opacity",
+			"skin": "skin",
+			"menu_reset_settings": "Reset Current Settings",
+			"dialog_change_skin_hint": "Select skin. To save, please click 'Save Current Settings' in the menu."
+		}
+	}
+	const lang = navigator.language.split("-")[0] === "zh" ? "zh" : "en";
+	const langText = string[lang];
 	var skin = GM_getValue("skin", null);
 
 	function rafThrottle(func) {
@@ -404,7 +465,7 @@ font-size:0px;
 		let wrap = dialog.appendChild(document.createElement("div"));
 		wrap.style.display = "block";
 		let nameInp = wrap.appendChild(document.createElement("input"));
-		nameInp.placeholder = "使用正版ID获取皮肤";
+		nameInp.placeholder = langText.mojang_id_placeholder;
 		nameInp.setAttribute("style", `
 outline:none;
 border:none;
@@ -416,11 +477,11 @@ margin-right:10px;
 		let upload;
 		nameInp.addEventListener("input", function() {
 			if (nameInp.value != "") {
-				uploadBtn.innerText = "获取皮肤";
+				uploadBtn.innerText = langText.fetch_skin_button;
 				upload = function() {
 					let span1 = dialog.appendChild(document.createElement("span"));
 					span1.style.fontSize = fontSize;
-					span1.innerText = `获取中 ...`;
+					span1.innerText = langText.fetching_skin;
 					span1.style.display = "block";
 					const username = nameInp.value.trim();
 					GM_xmlhttpRequest({
@@ -438,7 +499,7 @@ margin-right:10px;
 											const profileData = JSON.parse(profileResponse.responseText);
 											const texturesProp = profileData.properties.find(p => p.name === 'textures');
 											if (!texturesProp) {
-												alert('未获取到皮肤');
+												alert(langText.skin_not_found);
 												dialog.close();
 											}
 											const texturesJson = atob(texturesProp.value);
@@ -461,34 +522,34 @@ margin-right:10px;
 													reader.readAsDataURL(response.response);
 												},
 												onerror: function(e) {
-													alert("皮肤加载错误")
+													alert(langText.skin_load_error)
 													dialog.close();
 												}
 											});
 										} catch (e) {
-											alert(`${ e.message.includes('default') ? e.message : 'API请求失败，无法获取皮肤信息，请检查ID是否正确，或者检查网络连接'}`);
+											alert(`${ e.message.includes('default') ? e.message : langText.api_request_failed}`);
 											dialog.close();
 										}
 									},
 									onerror: function(e) {
-										alert(`API请求失败，无法获取皮肤信息，请检查ID是否正确，或者检查网络连接`);
+										alert(langText.api_request_failed);
 										dialog.close();
 									}
 								});
 							} catch (e) {
-								alert(`${e.responseText ? JSON.parse(e.responseText).errorMessage : 'API请求失败，无法获取皮肤信息，请检查ID是否正确，或者检查网络连接'}`);
+								alert(`${e.responseText ? JSON.parse(e.responseText).errorMessage : langText.api_request_failed}`);
 								dialog.close();
 							}
 						},
 						onerror: function(e) {
-							alert(`${e.responseText ? JSON.parse(e.responseText).errorMessage : 'API请求失败无法获取皮肤信息，请检查ID是否正确，或者检查网络连接'}`);
+							alert(`${e.responseText ? JSON.parse(e.responseText).errorMessage : langText.api_request_failed}`);
 							dialog.close();
 						}
 					});
 				}
 				uploadBtn.onclick = upload;
 			} else {
-				uploadBtn.innerText = "上传皮肤";
+				uploadBtn.innerText = langText.upload_skin_button;
 				uploadBtn.onclick = function() {
 					uploadSkin(isSave);
 				};
@@ -508,7 +569,7 @@ border-radius:10px;
 margin-top:20px;
 `)
 		uploadBtn.style.fontSize = fontSize;
-		uploadBtn.innerText = "上传皮肤";
+		uploadBtn.innerText = langText.upload_skin_button;
 
 		uploadBtn.addEventListener("dragover", (e) => {
 			e.preventDefault();
@@ -582,7 +643,7 @@ margin-top:20px;
 		})
 	}
 	if (!skin) {
-		createSkinPickerDialog(true, `[MC Skin] 初次使用需要上传皮肤文件`);
+		createSkinPickerDialog(true, langText.first_time_upload_tip);
 		dialog.showModal();
 		dialog.focus();
 		dialog.blur();
@@ -1033,7 +1094,7 @@ margin-top:20px;
 		capture: true
 	});
 
-	GM_registerMenuCommand("调整透明度", function() {
+	GM_registerMenuCommand(langText.menu_adjust_opacity, function() {
 		removeAllChild(dialog)
 		var d1 = dialog.appendChild(document.createElement("div"))
 		d1.setAttribute("style", `padding-bottom:15px !important;
@@ -1060,7 +1121,7 @@ display:block !important;
 		d2.setAttribute("style", `
 margin-top:20px !important;
 font-size:` + fontSize.replace(/px/, "") / 1.3 + "px")
-		d2.innerText = "设置仅对本次当前网页生效，保存设置请单击菜单中 保存当前设置";
+		d2.innerText = langText.dialog_opacity_note;
 		dialog.showModal();
 		dialog.focus();
 		dialog.blur();
@@ -1075,7 +1136,7 @@ font-size:` + fontSize.replace(/px/, "") / 1.3 + "px")
 	function move() {
 		isMoving = true;
 		GM_unregisterMenuCommand(moveMenuId);
-		finishMoveMenuId = GM_registerMenuCommand("完成移动", finishMove);
+		finishMoveMenuId = GM_registerMenuCommand(langText.menu_finish_move, finishMove);
 
 		function makeDraggable(element) {
 			element.style.pointerEvents = "auto";
@@ -1148,12 +1209,12 @@ font-size:` + fontSize.replace(/px/, "") / 1.3 + "px")
 			positionLeft = canvas.style.left;
 			positionTop = canvas.style.top;
 		})
-		moveMenuId = GM_registerMenuCommand("移动", move);
+		moveMenuId = GM_registerMenuCommand(langText.menu_move, move);
 		GM_unregisterMenuCommand(finishMoveMenuId);
 		canvas.style.pointerEvents = "none";
 	}
-	moveMenuId = GM_registerMenuCommand("移动", move);
-	GM_registerMenuCommand("保存当前设置", () => {
+	moveMenuId = GM_registerMenuCommand(langText.menu_move, move);
+	GM_registerMenuCommand(langText.menu_save_settings, () => {
 		GM_setValue("positionLeft", positionLeft);
 		GM_setValue("positionTop", positionTop);
 		GM_setValue("opacity", opacity);
@@ -1161,11 +1222,11 @@ font-size:` + fontSize.replace(/px/, "") / 1.3 + "px")
 		if (!isMoving) {
 			GM_setValue("defaultRotation", defaultRotation);
 		}
-		alert(`[MC Skin]${isMoving?"\n⚠️ 当前移动位置未保存，如需保存应当点击 完成移动 后再保存当前设置":""}
-保存成功，当前参数为：
-${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"+GM_getValue("positionTop")+"\n":""}${GM_getValue("opacity")?"透明度"+GM_getValue("opacity")+"\n":""}${GM_getValue("skin")?"皮肤"+GM_getValue("skin"):""}`)
+		alert(`[MC Skin]${isMoving?langText.alert_move_not_saved:""}
+${langText.alert_save_success}
+${GM_getValue("positionLeft")?langText.position+":left "+GM_getValue("positionLeft")+" top:"+GM_getValue("positionTop")+"\n":""}${GM_getValue("opacity")?langText.opacity+GM_getValue("opacity")+"\n":""}${GM_getValue("skin")?langText.skin+GM_getValue("skin"):""}`)
 	})
-	GM_registerMenuCommand("重置当前设置", () => {
+	GM_registerMenuCommand(langText.menu_reset_settings, () => {
 		GM_deleteValue("positionLeft");
 		GM_deleteValue("positionTop");
 		GM_deleteValue("opacity");
@@ -1174,8 +1235,8 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 		GM_deleteValue("fullscreenAddition");
 		GM_deleteValue("mouseFollowMode");
 	})
-	GM_registerMenuCommand("更换皮肤", function() {
-		createSkinPickerDialog(false, `选择皮肤 如需保存请点击菜单中 保存当前设置`)
+	GM_registerMenuCommand(langText.menu_change_skin, function() {
+		createSkinPickerDialog(false, langText.dialog_change_skin_hint)
 
 		dialog.showModal();
 		dialog.focus();
@@ -1205,23 +1266,23 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 	});
 	var fc1Click = () => {
 		GM_unregisterMenuCommand(fc1);
-		fc2 = GM_registerMenuCommand("点击禁用在全屏时显示皮肤", fc2Click);
+		fc2 = GM_registerMenuCommand(langText.menu_disable_fullscreen_skin, fc2Click);
 		fullscreenAddition = true;
 		GM_setValue("fullscreenAddition", fullscreenAddition);
 	}
 	var fc2Click = () => {
 		GM_unregisterMenuCommand(fc2);
-		fc1 = GM_registerMenuCommand("点击启用在全屏时显示皮肤", fc1Click);
+		fc1 = GM_registerMenuCommand(langText.menu_enable_fullscreen_skin, fc1Click);
 		fullscreenAddition = false;
 		GM_setValue("fullscreenAddition", fullscreenAddition);
 	}
 	if (!fullscreenAddition) {
-		fc1 = GM_registerMenuCommand("点击启用在全屏时显示皮肤", fc1Click);
+		fc1 = GM_registerMenuCommand(langText.menu_enable_fullscreen_skin, fc1Click);
 	} else {
 		document.addEventListener('fullscreenchange', fullscreenListener, {
 			passive: true
 		});
-		fc2 = GM_registerMenuCommand("点击禁用在全屏时显示皮肤", fc2Click);
+		fc2 = GM_registerMenuCommand(langText.menu_disable_fullscreen_skin, fc2Click);
 	}
 	var changeMouseModeMenu;
 	var changeMouseFollowMode = () => {
@@ -1230,13 +1291,13 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 		if (mouseFollowMode == "bedrock") {
 			mouseFollowMode = "java";
 			isRotationReset = false;
-			changeMouseModeMenu = GM_registerMenuCommand("切换鼠标跟随至基岩版模式", changeMouseFollowMode);
+			changeMouseModeMenu = GM_registerMenuCommand(langText.menu_switch_mouse_bedrock, changeMouseFollowMode);
 			skinViewer.globalLight.intensity = 1;
 			skinViewer.cameraLight.intensity = 0;
 			light = new THREE.HemisphereLight(0xffffff, 0x000000, 2.9);
 		} else {
 			mouseFollowMode = "bedrock";
-			changeMouseModeMenu = GM_registerMenuCommand("切换鼠标跟随至java版模式", changeMouseFollowMode);
+			changeMouseModeMenu = GM_registerMenuCommand(langText.menu_switch_mouse_java, changeMouseFollowMode);
 			skinViewer.playerObject.skin.rotation.y = 0;
 			skinViewer.playerObject.skin.rotation.x = 0;
 			skinViewer.playerObject.skin.rotation.z = 0;
@@ -1249,9 +1310,9 @@ ${GM_getValue("positionLeft")?"位置:left "+GM_getValue("positionLeft")+" top:"
 		skinViewer.scene.add(light);
 	}
 	if (mouseFollowMode == "bedrock") {
-		changeMouseModeMenu = GM_registerMenuCommand("切换鼠标跟随至java版模式", changeMouseFollowMode);
+		changeMouseModeMenu = GM_registerMenuCommand(langText.menu_switch_mouse_java, changeMouseFollowMode);
 	} else {
-		changeMouseModeMenu = GM_registerMenuCommand("切换鼠标跟随至基岩版模式", changeMouseFollowMode);
+		changeMouseModeMenu = GM_registerMenuCommand(langText.menu_switch_mouse_bedrock, changeMouseFollowMode);
 	}
 	var canvasScale = 1;
 	var resizeFunction = () => {

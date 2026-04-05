@@ -1224,7 +1224,7 @@ font-size:` + fontSize.replace(/px/, "") / 1.3 + "px")
 		}
 		alert(`[MC Skin]${isMoving?langText.alert_move_not_saved:""}
 ${langText.alert_save_success}
-${GM_getValue("positionLeft")?langText.position+":left "+GM_getValue("positionLeft")+" top:"+GM_getValue("positionTop")+"\n":""}${GM_getValue("opacity")?langText.opacity+GM_getValue("opacity")+"\n":""}${GM_getValue("skin")?langText.skin+GM_getValue("skin"):""}`)
+${GM_getValue("positionLeft")?langText.position+":left "+GM_getValue("positionLeft")+"    top "+GM_getValue("positionTop")+"\n":""}${GM_getValue("opacity")?langText.opacity+":"+GM_getValue("opacity")+"\n":""}${GM_getValue("skin")?langText.skin+"\n"+GM_getValue("skin"):""}`)
 	})
 	GM_registerMenuCommand(langText.menu_reset_settings, () => {
 		GM_deleteValue("positionLeft");

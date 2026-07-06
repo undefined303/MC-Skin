@@ -2,7 +2,7 @@
 // @name            MC-Skin
 // @name:en         MC-Skin
 // @namespace       https://viayoo.com/
-// @version         4.9
+// @version         5.0
 // @description     在网页里添加一个MC小人
 // @description:en  Add Minecraft skin in webpage
 // @author          undefined303
@@ -1140,8 +1140,6 @@ font-size:` + fontSize.replace(/px/, "") / 1.3 + "px")
 
 		function makeDraggable(element) {
 			element.style.pointerEvents = "auto";
-			var width = getComputedStyle(element).width.replace(/px/, "") * 1;
-			var height = getComputedStyle(element).height.replace(/px/, "") * 1;
 			let isDragging = false;
 			let startX, startY, initialLeft, initialTop;
 			const parsePosition = (type) => {
@@ -1160,6 +1158,8 @@ font-size:` + fontSize.replace(/px/, "") / 1.3 + "px")
 				startY = clientY;
 			};
 			const handleMove = (clientX, clientY) => {
+				var width = element.getBoundingClientRect().width;
+				var height = element.getBoundingClientRect().height;
 				if (!isDragging) return;
 				const deltaX = clientX - startX;
 				const deltaY = clientY - startY;
@@ -1247,7 +1247,7 @@ ${GM_getValue("positionLeft")?langText.position+":left "+GM_getValue("positionLe
 	var fullscreenListener = () => {
 		if (fullscreenAddition) {
 			if (document.fullscreenElement) {
-				document.fullscreenElement.append(canvas);
+				document.fullscreenElement.after(canvas);
 				canvas.showPopover();
 			} else {
 				document.body.append(canvas);
@@ -1357,66 +1357,69 @@ ${GM_getValue("positionLeft")?langText.position+":left "+GM_getValue("positionLe
 				data: data
 			}, "*");
 		}
-		iframe.contentWindow.addEventListener("mousemove", pushEventMessage, {
-			passive: true,
-			capture: true
-		});
-		iframe.contentWindow.addEventListener("touchstart", pushEventMessage, {
-			passive: true,
-			capture: true
-		});
-		iframe.contentWindow.addEventListener("touchmove", pushEventMessage, {
-			passive: true,
-			capture: true
-		});
-		iframe.contentWindow.addEventListener("touchend", pushEventMessage, {
-			passive: true,
-			capture: true
-		});
-		iframe.contentWindow.addEventListener("touchcancel", pushEventMessage, {
-			passive: true,
-			capture: true
-		});
-		iframe.contentWindow.addEventListener("wheel", pushEventMessage, {
-			passive: true,
-			capture: true
-		})
-		iframe.contentWindow.addEventListener("mousedown", pushEventMessage, {
-			passive: true,
-			capture: true
-		})
-		iframe.contentDocument.addEventListener('keydown', pushEventMessage, {
-			passive: true,
-			capture: true
-		});
-		createIframeListener(iframe.contentDocument);
-		iframe.contentWindow.addEventListener("message", (e) => {
-			if (e.data.type == "McSkinIframeEventData" && e.source != iframe.contentWindow.parent && e.source != top) {
-				e.stopImmediatePropagation();
-				let data = {};
-				var rectObject = iframe.getBoundingClientRect();
-				var x = rectObject.left;
-				var y = rectObject.top;
-				data.type = e.data.data.type;
-				e.data.data.clientX ? data.clientX = e.data.data.clientX + x : null;
-				e.data.data.clientY ? data.clientY = e.data.data.clientY + y : null;
-				if (e.data.data.targetTouches && data.type != "touchend" && data.type != "touchcancel") {
-					data.targetTouches = [{
-						clientX: e.data.data.targetTouches[0].clientX + x,
-						clientY: e.data.data.targetTouches[0].clientY + y
-					}]
+		try {
+			iframe.contentWindow.addEventListener("mousemove", pushEventMessage, {
+				passive: true,
+				capture: true
+			});
+			iframe.contentWindow.addEventListener("touchstart", pushEventMessage, {
+				passive: true,
+				capture: true
+			});
+			iframe.contentWindow.addEventListener("touchmove", pushEventMessage, {
+				passive: true,
+				capture: true
+			});
+			iframe.contentWindow.addEventListener("touchend", pushEventMessage, {
+				passive: true,
+				capture: true
+			});
+			iframe.contentWindow.addEventListener("touchcancel", pushEventMessage, {
+				passive: true,
+				capture: true
+			});
+			iframe.contentWindow.addEventListener("wheel", pushEventMessage, {
+				passive: true,
+				capture: true
+			})
+			iframe.contentWindow.addEventListener("mousedown", pushEventMessage, {
+				passive: true,
+				capture: true
+			})
+			iframe.contentDocument.addEventListener('keydown', pushEventMessage, {
+				passive: true,
+				capture: true
+			});
+			createIframeListener(iframe.contentDocument);
+			iframe.contentWindow.addEventListener("message", (e) => {
+				if (e.data.type == "McSkinIframeEventData" && e.source != iframe.contentWindow.parent && e.source != top) {
+					e.stopImmediatePropagation();
+					let data = {};
+					var rectObject = iframe.getBoundingClientRect();
+					var x = rectObject.left;
+					var y = rectObject.top;
+					data.type = e.data.data.type;
+					e.data.data.clientX ? data.clientX = e.data.data.clientX + x : null;
+					e.data.data.clientY ? data.clientY = e.data.data.clientY + y : null;
+					if (e.data.data.targetTouches && data.type != "touchend" && data.type != "touchcancel") {
+						data.targetTouches = [{
+							clientX: e.data.data.targetTouches[0].clientX + x,
+							clientY: e.data.data.targetTouches[0].clientY + y
+						}]
+					}
+					e.data.data.wheelDelta ? data.wheelDelta = e.data.data.wheelDelta : null;
+					e.data.data.detail ? data.detail = e.data.data.detail : null;
+					iframe.contentWindow.parent.postMessage({
+						type: "McSkinIframeEventData",
+						data: data
+					}, "*");
 				}
-				e.data.data.wheelDelta ? data.wheelDelta = e.data.data.wheelDelta : null;
-				e.data.data.detail ? data.detail = e.data.data.detail : null;
-				iframe.contentWindow.parent.postMessage({
-					type: "McSkinIframeEventData",
-					data: data
-				}, "*");
-			}
-		}, {
-			passive: true
-		})
-
+			}, {
+				passive: true
+			})
+		} catch (e) {
+			console.error(e);
+		}
 	}
 	var iframeEventHandler = (e) => {
 		if (e.data.type == "McSkinIframeEventData") {

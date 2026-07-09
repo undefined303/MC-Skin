@@ -462,7 +462,6 @@ font-size:0px;
 		e.preventDefault();
 		e.stopPropagation();
 	}
-
 	var pasteKeyDownListener;
 	var pasteKeyUpListener;
 	var pasteListener;
@@ -508,12 +507,6 @@ margin-right:10px;
 							dialog.close();
 							return;
 						}
-
-
-
-
-
-
 						const base64Regex = /^data:image\//;
 						if (base64Regex.test(inputValue)) {
 							skinViewer.loadSkin(inputValue);
@@ -562,12 +555,6 @@ margin-right:10px;
 								return;
 							}
 						}
-
-
-
-
-
-
 					} else {
 						const username = inputValue;
 						GM_xmlhttpRequest({
@@ -645,7 +632,6 @@ margin-right:10px;
 		let uploadBtnOnClick;
 		let isDown = false;
 		pasteKeyDownListener = function(e) {
-			console.log(shadow.activeElement)
 			if (shadow.activeElement != skinInp) {
 				uploadBtnOnClick = uploadBtn.onclick;
 				if (e.ctrlKey || e.metaKey) {
@@ -670,9 +656,6 @@ margin-right:10px;
 		}
 		pasteListener = function(event) {
 			if (shadow.activeElement != skinInp) {
-
-
-
 				const items = event.clipboardData.items;
 				for (const item of items) {
 					if (item.type.startsWith('image/')) {

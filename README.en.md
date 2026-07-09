@@ -10,7 +10,7 @@ The script supports various configurable options via the script menu. Below are 
 
 1. **Adjust Position**: Click **Move** to drag the character. Then click **Finish Move** to exit moving mode. The position is set as a percentage of the page width/height, so it should theoretically support both landscape and portrait orientation changes.
 2. **Adjust Opacity**: Click **Adjust Opacity** to open the opacity slider. Drag the slider to change the character's transparency.
-3. Upload Skin: Click **Change Skin** to open the skin selection dialog. The following upload methods are currently supported:
+3. **Upload Skin**: Click **Change Skin** to open the skin selection dialog. The following upload methods are currently supported:
    -  Click the upload button to select a skin file from your local device.
    -  Enter your Minecraft ID to fetch your skin automatically.
    -  Enter a skin image URL to load it directly.

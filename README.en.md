@@ -10,7 +10,12 @@ The script supports various configurable options via the script menu. Below are 
 
 1. **Adjust Position**: Click **Move** to drag the character. Then click **Finish Move** to exit moving mode. The position is set as a percentage of the page width/height, so it should theoretically support both landscape and portrait orientation changes.
 2. **Adjust Opacity**: Click **Adjust Opacity** to open the opacity slider. Drag the slider to change the character's transparency.
-3. **Change Skin**: Click **Change Skin** to open the skin selection dialog. You can click the upload button to pick an image file, drag and drop an image directly onto the upload button (the button turns into a plus sign), or enter a legitimate Minecraft ID to fetch the skin.
+3. Upload Skin: Click **Change Skin** to open the skin selection dialog. The following upload methods are currently supported:
+   -  Click the upload button to select a skin file from your local device.
+   -  Enter your Minecraft ID to fetch your skin automatically.
+   -  Enter a skin image URL to load it directly.
+   -  Drag and drop a skin image onto the upload button area – when the button turns into a "+" sign, release to upload.
+   -  Copy a skin file, then press Ctrl+V (or Cmd+V on Mac) to paste it directly.
 4. All the above settings only apply to the current webpage and reset after a refresh. To save them permanently across all pages, click **Save Current Settings**.
 5. To reset custom settings to defaults, click **Reset Current Settings**. After resetting, already open pages need to be refreshed for the changes to take effect.
 6. Option to show the character in fullscreen mode (disabled by default). When enabled, the character will appear while watching videos or playing games in fullscreen.

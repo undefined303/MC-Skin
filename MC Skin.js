@@ -2,7 +2,7 @@
 // @name            MC-Skin
 // @name:en         MC-Skin
 // @namespace       https://viayoo.com/
-// @version         5.0
+// @version         5.1
 // @description     在网页里添加一个MC小人
 // @description:en  Add Minecraft skin in webpage
 // @author          undefined303
@@ -35,12 +35,13 @@
 	const string = {
 		"zh": {
 			"first_time_upload_tip": "[MC Skin] 初次使用需要上传皮肤文件",
-			"mojang_id_placeholder": "使用正版ID获取皮肤",
+			"upload_skin_input_placeholder": "使用正版ID或链接获取皮肤",
 			"upload_skin_button": "上传皮肤",
 			"fetch_skin_button": "获取皮肤",
 			"fetching_skin": "获取中 ...",
 			"skin_not_found": "未获取到皮肤",
 			"skin_load_error": "皮肤加载错误",
+			"url_request_failed": "URL皮肤获取失败，请检查链接是否准确，或者检查网络连接",
 			"api_request_failed": "API请求失败，无法获取皮肤信息，请检查ID是否正确，或者检查网络连接",
 			"menu_adjust_opacity": "调整透明度",
 			"dialog_opacity_note": "设置仅对本次当前网页生效，保存设置请单击菜单中 保存当前设置",
@@ -62,12 +63,13 @@
 		},
 		"en": {
 			"first_time_upload_tip": "[MC Skin] Please upload a skin file for first-time use",
-			"mojang_id_placeholder": "Get skin using official ID",
+			"upload_skin_input_placeholder": "Get skin using official ID or URL",
 			"upload_skin_button": "Upload Skin",
 			"fetch_skin_button": "Fetch Skin",
 			"fetching_skin": "Fetching ...",
 			"skin_not_found": "Skin not found",
 			"skin_load_error": "Skin load error",
+			"url_request_failed": "URL request failed. Please check if the URL is correct or check your network connection.",
 			"api_request_failed": "API request failed. Unable to get skin info. Please check if the ID is correct or check your network connection.",
 			"menu_adjust_opacity": "Adjust Opacity",
 			"dialog_opacity_note": "Settings only apply to the current webpage. To save settings, please click 'Save Current Settings' in the menu.",
@@ -456,7 +458,21 @@ font-size:0px;
 		});
 	}
 
+	function preventDefault(e) {
+		e.preventDefault();
+		e.stopPropagation();
+	}
+
+	var pasteKeyDownListener;
+	var pasteKeyUpListener;
+	var pasteListener;
 	var createSkinPickerDialog = function(isSave, info) {
+		window.addEventListener('dragenter', preventDefault);
+		window.addEventListener('dragover', preventDefault);
+		window.addEventListener('drop', preventDefault);
+		document.addEventListener('dragenter', preventDefault);
+		document.addEventListener('dragover', preventDefault);
+		document.addEventListener('drop', preventDefault);
 		removeAllChild(dialog);
 		let span = dialog.appendChild(document.createElement("span"));
 		span.style.fontSize = fontSize;
@@ -464,9 +480,9 @@ font-size:0px;
 		span.style.display = "block";
 		let wrap = dialog.appendChild(document.createElement("div"));
 		wrap.style.display = "block";
-		let nameInp = wrap.appendChild(document.createElement("input"));
-		nameInp.placeholder = langText.mojang_id_placeholder;
-		nameInp.setAttribute("style", `
+		let skinInp = wrap.appendChild(document.createElement("input"));
+		skinInp.placeholder = langText.upload_skin_input_placeholder;
+		skinInp.setAttribute("style", `
 outline:none;
 border:none;
 border-radius:0;
@@ -475,77 +491,148 @@ background:transparent;
 margin-right:10px;
 `)
 		let upload;
-		nameInp.addEventListener("input", function() {
-			if (nameInp.value != "") {
+		skinInp.addEventListener("input", function() {
+			if (skinInp.value != "") {
 				uploadBtn.innerText = langText.fetch_skin_button;
 				upload = function() {
 					let span1 = dialog.appendChild(document.createElement("span"));
 					span1.style.fontSize = fontSize;
 					span1.innerText = langText.fetching_skin;
 					span1.style.display = "block";
-					const username = nameInp.value.trim();
-					GM_xmlhttpRequest({
-						method: 'GET',
-						url: `https://api.mojang.com/users/profiles/minecraft/${username}`,
-						onload: function(uuidResponse) {
-							try {
-								const uuidData = JSON.parse(uuidResponse.responseText);
-								const uuid = uuidData.id;
-								GM_xmlhttpRequest({
-									method: 'GET',
-									url: `https://sessionserver.mojang.com/session/minecraft/profile/${uuid}`,
-									onload: function(profileResponse) {
-										try {
-											const profileData = JSON.parse(profileResponse.responseText);
-											const texturesProp = profileData.properties.find(p => p.name === 'textures');
-											if (!texturesProp) {
-												alert(langText.skin_not_found);
-												dialog.close();
-											}
-											const texturesJson = atob(texturesProp.value);
-											const texturesData = JSON.parse(texturesJson);
-											const skinUrl = texturesData.textures.SKIN.url;
-											GM_xmlhttpRequest({
-												method: "GET",
-												url: skinUrl,
-												responseType: "blob",
-												onload: function(response) {
-													const reader = new FileReader();
-													reader.onloadend = function() {
-														skinViewer.loadSkin(reader.result);
-														skin = reader.result;
-														if (isSave) {
-															GM_setValue("skin", reader.result);
-														}
-														dialog.close();
-													}
-													reader.readAsDataURL(response.response);
-												},
-												onerror: function(e) {
-													alert(langText.skin_load_error)
+					const inputValue = skinInp.value.trim();
+					if (/\:/.test(inputValue)) {
+						try {
+							new URL(inputValue);
+						} catch (e) {
+							alert(langText.url_request_failed + "\n" + e.message);
+							dialog.close();
+							return;
+						}
+
+
+
+
+
+
+						const base64Regex = /^data:image\//;
+						if (base64Regex.test(inputValue)) {
+							skinViewer.loadSkin(inputValue);
+							skin = inputValue;
+							if (isSave) {
+								GM_setValue("skin", inputValue);
+							}
+							dialog.close();
+						} else {
+							var error = "";
+							GM_xmlhttpRequest({
+								method: 'GET',
+								url: inputValue,
+								responseType: 'blob',
+								onload: function(response) {
+									if (response.status < 200 || response.status >= 300) {
+										error = "Fetch error. Code:" + response.status;
+										return;
+									}
+									const blob = response.response;
+									if (!blob || !blob.type || !blob.type.startsWith('image/')) {
+										error = "Need Image.";
+										return;
+									}
+									const reader = new FileReader();
+									reader.onload = function(e) {
+										skinViewer.loadSkin(e.target.result);
+										skin = e.target.result;
+										if (isSave) {
+											GM_setValue("skin", e.target.result);
+										}
+										dialog.close();
+									};
+									reader.onerror = function(e) {
+										error = reader.error ? reader.error.message : "unknown error";
+									};
+									reader.readAsDataURL(blob);
+								},
+								onerror: function(e) {
+									error = e.message;
+								}
+							});
+							if (error) {
+								alert(langText.url_request_failed + "\n" + error);
+								dialog.close();
+								return;
+							}
+						}
+
+
+
+
+
+
+					} else {
+						const username = inputValue;
+						GM_xmlhttpRequest({
+							method: 'GET',
+							url: `https://api.mojang.com/users/profiles/minecraft/${username}`,
+							onload: function(uuidResponse) {
+								try {
+									const uuidData = JSON.parse(uuidResponse.responseText);
+									const uuid = uuidData.id;
+									GM_xmlhttpRequest({
+										method: 'GET',
+										url: `https://sessionserver.mojang.com/session/minecraft/profile/${uuid}`,
+										onload: function(profileResponse) {
+											try {
+												const profileData = JSON.parse(profileResponse.responseText);
+												const texturesProp = profileData.properties.find(p => p.name === 'textures');
+												if (!texturesProp) {
+													alert(langText.skin_not_found);
 													dialog.close();
 												}
-											});
-										} catch (e) {
-											alert(`${ e.message.includes('default') ? e.message : langText.api_request_failed}`);
+												const texturesJson = atob(texturesProp.value);
+												const texturesData = JSON.parse(texturesJson);
+												const skinUrl = texturesData.textures.SKIN.url;
+												GM_xmlhttpRequest({
+													method: "GET",
+													url: skinUrl,
+													responseType: "blob",
+													onload: function(response) {
+														const reader = new FileReader();
+														reader.onloadend = function() {
+															skinViewer.loadSkin(reader.result);
+															skin = reader.result;
+															if (isSave) {
+																GM_setValue("skin", reader.result);
+															}
+															dialog.close();
+														}
+														reader.readAsDataURL(response.response);
+													},
+													onerror: function(e) {
+														alert(langText.skin_load_error)
+														dialog.close();
+													}
+												});
+											} catch (e) {
+												alert(`${ e.message.includes('default') ? e.message : langText.api_request_failed}`);
+												dialog.close();
+											}
+										},
+										onerror: function(e) {
+											alert(langText.api_request_failed);
 											dialog.close();
 										}
-									},
-									onerror: function(e) {
-										alert(langText.api_request_failed);
-										dialog.close();
-									}
-								});
-							} catch (e) {
+									});
+								} catch (e) {
+									alert(`${e.responseText ? JSON.parse(e.responseText).errorMessage : langText.api_request_failed}`);
+									dialog.close();
+								}
+							},
+							onerror: function(e) {
 								alert(`${e.responseText ? JSON.parse(e.responseText).errorMessage : langText.api_request_failed}`);
 								dialog.close();
 							}
-						},
-						onerror: function(e) {
-							alert(`${e.responseText ? JSON.parse(e.responseText).errorMessage : langText.api_request_failed}`);
-							dialog.close();
-						}
-					});
+						});
+					}
 				}
 				uploadBtn.onclick = upload;
 			} else {
@@ -555,6 +642,64 @@ margin-right:10px;
 				};
 			}
 		})
+		let uploadBtnOnClick;
+		let isDown = false;
+		pasteKeyDownListener = function(e) {
+			console.log(shadow.activeElement)
+			if (shadow.activeElement != skinInp) {
+				uploadBtnOnClick = uploadBtn.onclick;
+				if (e.ctrlKey || e.metaKey) {
+					isDown = true;
+					if (!/\+|Ctrl/.test(uploadBtn.innerText)) {
+						originalText = uploadBtn.innerText;
+					}
+					uploadBtn.onclick = null;
+					uploadBtn.innerText = "Ctrl +"
+				}
+				if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+					uploadBtn.innerText = "Ctrl + V"
+				}
+			}
+		}
+		pasteKeyUpListener = function(e) {
+			if (isDown) {
+				isDown = false;
+				uploadBtn.innerText = originalText;
+				uploadBtn.onclick = uploadBtnOnClick;
+			}
+		}
+		pasteListener = function(event) {
+			if (shadow.activeElement != skinInp) {
+
+
+
+				const items = event.clipboardData.items;
+				for (const item of items) {
+					if (item.type.startsWith('image/')) {
+						const blob = item.getAsFile();
+						const reader = new FileReader();
+						reader.onload = (e) => {
+							const base64String = e.target.result;
+							skinViewer.loadSkin(base64String);
+							skin = base64String;
+							if (isSave) {
+								GM_setValue("skin", base64String);
+							}
+							dialog.close();
+						};
+						reader.onerror = (err) => {
+							console.error('读取图片失败:', err);
+						};
+						reader.readAsDataURL(blob);
+						break;
+					}
+				}
+			}
+		}
+		document.addEventListener('keydown', pasteKeyDownListener);
+		document.addEventListener('keyup', pasteKeyUpListener);
+		document.addEventListener('paste', pasteListener);
+
 		let uploadBtn = wrap.appendChild(document.createElement("button"));
 		uploadBtn.onclick = () => {
 			uploadSkin(isSave)
@@ -573,74 +718,121 @@ margin-top:20px;
 
 		uploadBtn.addEventListener("dragover", (e) => {
 			e.preventDefault();
+			e.stopPropagation();
+			e.dataTransfer.dropEffect = 'copy';
 		})
+		var originalText;
 
+		function dragLeaveHandler(e) {
+			e.preventDefault();
+			e.stopPropagation();
+			uploadBtn.style.opacity = "1";
+			uploadBtn.style.border = "none";
+			uploadBtn.innerText = originalText;
+			uploadBtn.style.fontWeight = "normal";
+			uploadBtn.style.fontSize = fontSize;
+		}
+
+		function dropHandler(e) {
+			dragLeaveHandler(e);
+
+			function isPng(file) {
+				if (file.type !== 'image/png') {
+					console.error('Only PNG files are allowed');
+					return false;
+				}
+			}
+			var file;
+			if (e.dataTransfer.items && e.dataTransfer.items.length) {
+				for (const item of e.dataTransfer.items) {
+					if (item.kind === 'file') {
+						file = item.getAsFile();
+						if (isPng(file)) {
+							break;
+						}
+					}
+				}
+			} else {
+				for (const item of e.dataTransfer.files) {
+
+					file = item;
+					if (isPng(file)) {
+						break;
+					}
+				}
+			}
+			return new Promise((resolve, reject) => {
+				if (!file) {
+					reject(new Error('No file uploaded'));
+					return;
+				}
+				dialog.close();
+				let reader = new FileReader();
+				reader.onload = (e) => {
+					try {
+						const base64 = e.target.result;
+						skinViewer.loadSkin(base64);
+						skin = base64;
+						if (isSave) {
+							GM_setValue("skin", base64);
+						}
+						resolve(base64);
+					} catch (error) {
+						reject(error);
+					}
+				};
+				reader.onerror = (error) => reject(error);
+				reader.readAsDataURL(file);
+			});
+
+		}
 		uploadBtn.addEventListener("dragenter", (e) => {
 			e.preventDefault();
-			var originalText = uploadBtn.innerText;
+			e.stopPropagation();
 			uploadBtn.style.opacity = ".6";
 			uploadBtn.style.border = "1px dashed white";
+			if (!/\+|Ctrl/.test(uploadBtn.innerText)) {
+				originalText = uploadBtn.innerText;
+			}
 			uploadBtn.innerText = "+";
 			uploadBtn.style.width = `calc(4 * ${fontSize} + 20px)`;
 			uploadBtn.style.fontWeight = 500;
 			uploadBtn.style.fontSize = `calc(1.193 * ${fontSize})`;
 
-			function dragLeaveHandler(e) {
-				e.preventDefault();
-				uploadBtn.style.opacity = "1";
-				uploadBtn.style.border = "none";
-				uploadBtn.innerText = originalText;
-				uploadBtn.style.fontWeight = "normal";
-				uploadBtn.style.fontSize = fontSize;
-				uploadBtn.removeEventListener("dragleave", dragLeaveHandler);
-				uploadBtn.removeEventListener("drop", dropHandler);
-			}
 
-			function dropHandler(e) {
-				dragLeaveHandler(e);
-				var file;
-				if (e.dataTransfer.items) {
-					if (e.dataTransfer.items[0].kind === "file") {
-						file = e.dataTransfer.items[0].getAsFile();
-					}
-				} else {
-					file = e.dataTransfer.files[0]
-				}
-				return new Promise((resolve, reject) => {
-					if (file.type !== 'image/png') {
-						reject(new Error('Only PNG files are allowed'));
-						return;
-					}
-					dialog.close();
-					let reader = new FileReader();
-					reader.onload = (e) => {
-						try {
-							const base64 = e.target.result;
-							skinViewer.loadSkin(base64);
-							skin = base64;
-							if (isSave) {
-								GM_setValue("skin", base64);
-							}
-							resolve(base64);
-						} catch (error) {
-							reject(error);
-						}
-					};
-					reader.onerror = (error) => reject(error);
-					reader.readAsDataURL(file);
-				});
-
-			}
-			uploadBtn.addEventListener("drop", dropHandler)
-			uploadBtn.addEventListener("dragleave", dragLeaveHandler);
+			uploadBtn.addEventListener("drop", dropHandler, {
+				capture: true
+			});
+			uploadBtn.addEventListener("dragleave", dragLeaveHandler, {
+				capture: true
+			});
 		})
 
-		nameInp.addEventListener("keydown", function(e) {
+		skinInp.addEventListener("keydown", function(e) {
 			if (e.keyCode == 13) {
 				e.preventDefault();
 				upload();
 			}
 		})
+
+		let dialogCloseListener = function() {
+			uploadBtn.removeEventListener("dragleave", dragLeaveHandler);
+			uploadBtn.removeEventListener("drop", dropHandler);
+			window.removeEventListener('dragenter', preventDefault);
+			window.removeEventListener('dragover', preventDefault);
+			window.removeEventListener('drop', preventDefault);
+			document.removeEventListener('dragenter', preventDefault);
+			document.removeEventListener('dragover', preventDefault);
+			document.removeEventListener('drop', preventDefault);
+			document.removeEventListener('keydown', pasteKeyDownListener);
+			document.removeEventListener('keyup', pasteKeyUpListener);
+			document.removeEventListener('paste', pasteListener);
+			dialog.removeEventListener("close", dialogCloseListener);
+			dialog.removeEventListener("cancel", dialogCloseListener);
+		}
+		dialog.addEventListener("close", dialogCloseListener);
+		dialog.addEventListener("cancel", dialogCloseListener);
+
 	}
 	if (!skin) {
 		createSkinPickerDialog(true, langText.first_time_upload_tip);

@@ -2,7 +2,7 @@
 
 A Userscript that adds a Minecraft character to web pages.
 
-Add a Minecraft character to any website. The character follows your touch or mouse movements. It responds to clicks, mouse wheel scrolling, and typing, playing corresponding animations. Additionally, after 5 minutes of inactivity on the page, the character will sneak and wiggle.
+Add a Minecraft character to any website. The character follows your touch or mouse movements. It responds to clicks, mouse wheel scrolling, and typing, playing corresponding animations. Additionally, after 5 minutes of inactivity on the page, the character will sneak and wiggle or become sleepy.
 
 **<span style="color:red">When using the script for the first time, you need to upload a skin file manually.</span>**
 

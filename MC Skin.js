@@ -2,7 +2,7 @@
 // @name            MC-Skin
 // @name:en         MC-Skin
 // @namespace       https://viayoo.com/
-// @version         5.2
+// @version         5.3
 // @description     在网页里添加一个MC小人
 // @description:en  Add Minecraft skin in webpage
 // @author          undefined303
@@ -105,71 +105,23 @@
 			});
 		};
 	}
-
-	function getIframeIndex(id, max) {
-		var messageListener;
-		return new Promise((resolve, reject) => {
-			var timeout = setTimeout(() => {
-				reject();
-			}, 500);
-			messageListener = (e) => {
-				if (e.data.type == "McSkinIframeIndex") {
-					e.stopImmediatePropagation();
-					//4.读取index
-					if (id == e.data.id) {
-						var index = e.data.data;
-						if (index <= max) {
-							resolve(index);
-							clearTimeout(timeout);
-						} else {
-							reject();
-							clearTimeout(timeout);
-						}
-					}
-				}
-			}
-			window.addEventListener("message", messageListener, {
-				passive: true
-			})
-		}).then((data) => {
-			window.removeEventListener("message", messageListener)
-			return data;
-		}).catch(() => {
-			window.removeEventListener("message", messageListener)
-			console.error("iframe获取index信息超时");
-			return "error";
-		})
-	}
 	window.addEventListener("message", async function(e) {
 		if (e.data.type == "McSkinIframeGetPosition") {
 			e.stopImmediatePropagation();
-			//2.收到获取位置信息请求，发送询问谁需要位置信息
-			var iframes = [...document.getElementsByTagName("iframe")]
-			var i = -1;
-			iframes.forEach((ele) => {
-				i++;
-				ele.contentWindow.postMessage({
-					type: "McSkinIframeGetPositionIndex",
-					id: e.data.id,
-					index: i
-				}, "*")
-
-			})
-			var iframeIndex = await getIframeIndex(e.data.id, iframes.length - 1);
-			if (iframeIndex == "error") {
-				iframes.forEach((ele) => {
-					ele.contentWindow.postMessage({
-						type: "McSkinIframeGetPositionError",
-						id: e.data.id
-					}, "*")
-				})
+			//2.收到获取位置信息请求，拿到获取的iframe
+			const iframe = Array.from(document.getElementsByTagName("iframe")).find(f => f.contentWindow === e.source);
+			if (!iframe) {
+				e.source.postMessage({
+					type: "McSkinIframeGetPositionError",
+					id: e.data.id
+				}, "*");
 				return;
 			}
 			//使用上一帧布局信息，避免强制同步布局
 			requestAnimationFrame(() => {
-				var bcr = iframes[iframeIndex].getBoundingClientRect();
-				//5.发送位置信息
-				iframes[iframeIndex].contentWindow.postMessage({
+				var bcr = iframe.getBoundingClientRect();
+				//3.发送位置信息
+				iframe.contentWindow.postMessage({
 					type: "McSkinIframePositionData",
 					data: {
 						x: bcr.left,
@@ -183,26 +135,6 @@
 		passive: true
 	})
 	if (self != top) {
-		var isGettingPosition = false;
-
-		function messageReceiver(e) {
-			if (e.data.type == 'McSkinIframeGetPositionIndex') {
-				e.stopImmediatePropagation();
-				//3.收到询问信息，如果需要，回答index
-				if (isGettingPosition) {
-					window.parent.postMessage({
-						type: "McSkinIframeIndex",
-						data: e.data.index,
-						id: e.data.id
-					}, '*');
-				}
-				isGettingPosition = false;
-			}
-		}
-
-		window.addEventListener('message', messageReceiver, {
-			passive: true
-		})
 		var getIframePosition = function() {
 			var id = Date.now() + Math.random();
 			//1.发送请求获取位置信息
@@ -215,12 +147,11 @@
 					window.removeEventListener("message", positionMessageReceiver);
 					reject();
 				}, 500);
-				isGettingPosition = true;
 
 				function positionMessageReceiver(e) {
 					if (e.data.type == "McSkinIframePositionData" && e.data.id == id) {
 						e.stopImmediatePropagation();
-						//6.接受位置信息
+						//4.接受位置信息
 						var positionData = e.data.data;
 						window.removeEventListener("message", positionMessageReceiver);
 						if (positionData == "error") {
@@ -276,7 +207,6 @@
 			})
 		}
 		async function pushEventMessage(e) {
-			if (document.domain.split('.').slice(-2).join(".") == "githubusercontent.com") return;
 			let data = {};
 			if (e.type == "touchstart" || e.type == "touchmove" || e.type == "mousemove") {
 				let lock = false;
@@ -970,7 +900,7 @@ margin-top:20px;
 			}
 		} else {
 			addAnimation = (pl, pr) => {
-				pl.skin.head.rotation.x = Math.PI / 2 - 0.45 * (pr % Math.PI <= Math.PI / 2 ? Math.sin(pr % Math.PI) : pr % Math.PI <= (Math.PI / 2 + (Math.PI / 2) / 2.5) ? Math.sin(Math.PI / 2 - 2.5 * (pr % Math.PI - Math.PI / 2)) : 0);
+				pl.skin.head.rotation.x = Math.PI / 2 - 0.01 - 0.45 * (pr % Math.PI <= Math.PI / 2 ? Math.sin(pr % Math.PI) : pr % Math.PI <= (Math.PI / 2 + (Math.PI / 2) / 2.5) ? Math.sin(Math.PI / 2 - 2.5 * (pr % Math.PI - Math.PI / 2)) : 0);
 			}
 		}
 	}
@@ -1179,6 +1109,7 @@ margin-top:20px;
 			progress2 = undefined;
 		}, 300)
 	}
+	handleMouseWheelEvent = rafThrottle(handleMouseWheelEvent);
 	window.addEventListener("wheel", handleMouseWheelEvent, {
 		passive: true,
 		capture: true
@@ -1213,6 +1144,7 @@ margin-top:20px;
 			}
 		}
 	}
+	mousedownFunction = rafThrottle(mousedownFunction);
 	window.addEventListener("mousedown", mousedownFunction, {
 		passive: true,
 		capture: true
@@ -1270,7 +1202,7 @@ margin-top:20px;
 			progress4 = undefined;
 		}, 600)
 	}
-
+	handleInputEvent = rafThrottle(handleInputEvent);
 	document.addEventListener('keydown', () => {
 		handleAfkAnimation();
 		handleInputEvent();

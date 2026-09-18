@@ -2,14 +2,14 @@
 // @name            MC-Skin
 // @name:en         MC-Skin
 // @namespace       https://viayoo.com/
-// @version         5.3
+// @version         5.4
 // @description     在网页里添加一个MC小人
 // @description:en  Add Minecraft skin in webpage
 // @author          undefined303
 // @license         MIT
 // @homepageURL     https://greasyfork.org/zh-CN/scripts/537235
 // @run-at          document-end
-// @match           *
+// @match           *://*/*
 // @include         *
 // @grant           GM_registerMenuCommand
 // @grant           GM_unregisterMenuCommand
@@ -227,8 +227,8 @@
 					clientY: e.targetTouches[0].clientY + y
 				}]
 			}
-			e.wheelDelta ? data.wheelDelta = e.wheelDelta : null;
-			e.detail ? data.detail = e.detail : null;
+			e.deltaY !== undefined ? data.deltaY = e.deltaY : null;
+			e.deltaMode !== undefined ? data.deltaMode = e.deltaMode : null;
 			window.parent.postMessage({
 				type: "McSkinIframeEventData",
 				data: data
@@ -283,8 +283,8 @@
 						clientY: e.data.data.targetTouches[0].clientY + y
 					}]
 				}
-				e.data.data.wheelDelta ? data.wheelDelta = e.data.data.wheelDelta : null;
-				e.data.data.detail ? data.detail = e.data.data.detail : null;
+				e.data.data.deltaY !== undefined ? data.deltaY = e.data.data.deltaY : null;
+				e.data.data.deltaMode !== undefined ? data.deltaMode = e.data.data.deltaMode : null;
 				window.parent.postMessage({
 					type: "McSkinIframeEventData",
 					data: data
@@ -420,11 +420,24 @@ background:transparent;
 margin-right:10px;
 `)
 		let upload;
+		let reqs = [];
+		let span1;
+		let currentFetchId = 0;
 		skinInp.addEventListener("input", function() {
 			if (skinInp.value != "") {
 				uploadBtn.innerText = langText.fetch_skin_button;
 				upload = function() {
-					let span1 = dialog.appendChild(document.createElement("span"));
+					currentFetchId++;
+					const thisFetchId = currentFetchId;
+					reqs.forEach((req) => {
+						try {
+							req.abort();
+						} catch (e) {}
+					})
+					reqs = [];
+					if (!span1) {
+						span1 = dialog.appendChild(document.createElement("span"))
+					};
 					span1.style.fontSize = fontSize;
 					span1.innerText = langText.fetching_skin;
 					span1.style.display = "block";
@@ -446,58 +459,64 @@ margin-right:10px;
 							}
 							dialog.close();
 						} else {
-							var error = "";
-							GM_xmlhttpRequest({
-								method: 'GET',
-								url: inputValue,
-								responseType: 'blob',
-								onload: function(response) {
-									if (response.status < 200 || response.status >= 300) {
-										error = "Fetch error. Code:" + response.status;
-										return;
-									}
-									const blob = response.response;
-									if (!blob || !blob.type || !blob.type.startsWith('image/')) {
-										error = "Need Image.";
-										return;
-									}
-									const reader = new FileReader();
-									reader.onload = function(e) {
-										skinViewer.loadSkin(e.target.result);
-										skin = e.target.result;
-										if (isSave) {
-											GM_setValue("skin", e.target.result);
+							new Promise((resolve, reject) => {
+								reqs.push(GM_xmlhttpRequest({
+									method: 'GET',
+									url: inputValue,
+									responseType: 'blob',
+									onload: function(response) {
+										if (thisFetchId !== currentFetchId) return;
+										if (response.status < 200 || response.status >= 300) {
+											reject("Fetch error. Code:" + response.status);
+											return;
 										}
-										dialog.close();
-									};
-									reader.onerror = function(e) {
-										error = reader.error ? reader.error.message : "unknown error";
-									};
-									reader.readAsDataURL(blob);
-								},
-								onerror: function(e) {
-									error = e.message;
-								}
-							});
-							if (error) {
-								alert(langText.url_request_failed + "\n" + error);
+										const blob = response.response;
+										if (!blob || !blob.type || !blob.type.startsWith('image/')) {
+											reject("Need Image.");
+											return;
+										}
+										const reader = new FileReader();
+										reader.onload = function(e) {
+											if (thisFetchId !== currentFetchId) return;
+											skinViewer.loadSkin(e.target.result);
+											skin = e.target.result;
+											if (isSave) {
+												GM_setValue("skin", e.target.result);
+											}
+											dialog.close();
+											resolve();
+										};
+										reader.onerror = function(e) {
+											reject(reader.error ? reader.error.message : "unknown error");
+										};
+										reader.readAsDataURL(blob);
+									},
+									onerror: function(e) {
+										if (thisFetchId !== currentFetchId) return;
+										reject(e && e.message ? e.message : "unknown error");
+									}
+								}))
+							}).catch((err) => {
+								if (thisFetchId !== currentFetchId) return;
+								alert(langText.url_request_failed + "\n" + err);
 								dialog.close();
-								return;
-							}
+							});
 						}
 					} else {
 						const username = inputValue;
-						GM_xmlhttpRequest({
+						reqs.push(GM_xmlhttpRequest({
 							method: 'GET',
 							url: `https://api.mojang.com/users/profiles/minecraft/${username}`,
 							onload: function(uuidResponse) {
+								if (thisFetchId !== currentFetchId) return;
 								try {
 									const uuidData = JSON.parse(uuidResponse.responseText);
 									const uuid = uuidData.id;
-									GM_xmlhttpRequest({
+									reqs.push(GM_xmlhttpRequest({
 										method: 'GET',
 										url: `https://sessionserver.mojang.com/session/minecraft/profile/${uuid}`,
 										onload: function(profileResponse) {
+											if (thisFetchId !== currentFetchId) return;
 											try {
 												const profileData = JSON.parse(profileResponse.responseText);
 												const texturesProp = profileData.properties.find(p => p.name === 'textures');
@@ -508,13 +527,15 @@ margin-right:10px;
 												const texturesJson = atob(texturesProp.value);
 												const texturesData = JSON.parse(texturesJson);
 												const skinUrl = texturesData.textures.SKIN.url;
-												GM_xmlhttpRequest({
+												reqs.push(GM_xmlhttpRequest({
 													method: "GET",
 													url: skinUrl,
 													responseType: "blob",
 													onload: function(response) {
+														if (thisFetchId !== currentFetchId) return;
 														const reader = new FileReader();
 														reader.onloadend = function() {
+															if (thisFetchId !== currentFetchId) return;
 															skinViewer.loadSkin(reader.result);
 															skin = reader.result;
 															if (isSave) {
@@ -525,30 +546,33 @@ margin-right:10px;
 														reader.readAsDataURL(response.response);
 													},
 													onerror: function(e) {
+														if (thisFetchId !== currentFetchId) return;
 														alert(langText.skin_load_error)
 														dialog.close();
 													}
-												});
+												}));
 											} catch (e) {
 												alert(`${ e.message.includes('default') ? e.message : langText.api_request_failed}`);
 												dialog.close();
 											}
 										},
 										onerror: function(e) {
+											if (thisFetchId !== currentFetchId) return;
 											alert(langText.api_request_failed);
 											dialog.close();
 										}
-									});
+									}));
 								} catch (e) {
 									alert(`${e.responseText ? JSON.parse(e.responseText).errorMessage : langText.api_request_failed}`);
 									dialog.close();
 								}
 							},
 							onerror: function(e) {
+								if (thisFetchId !== currentFetchId) return;
 								alert(`${e.responseText ? JSON.parse(e.responseText).errorMessage : langText.api_request_failed}`);
 								dialog.close();
 							}
-						});
+						}));
 					}
 				}
 				uploadBtn.onclick = upload;
@@ -654,6 +678,7 @@ margin-top:20px;
 					console.error('Only PNG files are allowed');
 					return false;
 				}
+				return true;
 			}
 			var file;
 			if (e.dataTransfer.items && e.dataTransfer.items.length) {
@@ -711,15 +736,13 @@ margin-top:20px;
 			uploadBtn.style.width = `calc(4 * ${fontSize} + 20px)`;
 			uploadBtn.style.fontWeight = 500;
 			uploadBtn.style.fontSize = `calc(1.193 * ${fontSize})`;
-
-
-			uploadBtn.addEventListener("drop", dropHandler, {
-				capture: true
-			});
-			uploadBtn.addEventListener("dragleave", dragLeaveHandler, {
-				capture: true
-			});
 		})
+		uploadBtn.addEventListener("drop", dropHandler, {
+			capture: true
+		});
+		uploadBtn.addEventListener("dragleave", dragLeaveHandler, {
+			capture: true
+		});
 
 		skinInp.addEventListener("keydown", function(e) {
 			if (e.keyCode == 13) {
@@ -729,6 +752,7 @@ margin-top:20px;
 		})
 
 		let dialogCloseListener = function() {
+			currentFetchId++;
 			uploadBtn.removeEventListener("dragleave", dragLeaveHandler);
 			uploadBtn.removeEventListener("drop", dropHandler);
 			window.removeEventListener('dragenter', preventDefault);
@@ -793,9 +817,22 @@ margin-top:20px;
 		skin: skin
 	});
 	canvas.showPopover();
+	canvas.addEventListener('webglcontextlost', (event) => {
+		event.preventDefault();
+		console.warn('WebGL context lost.');
+		skinViewer.animation.paused = true;
+		canvas.style.visibility = 'hidden';
+	});
+
+	canvas.addEventListener('webglcontextrestored', () => {
+		console.info('WebGL context restored.');
+		skinViewer.animation.paused = false;
+		canvas.style.visibility = 'visible';
+	});
+
 	var addAnimation = function() {}
 	var idleAnimation = new skinview3d.FunctionAnimation((player, pr) => {
-		if (canvas.style.display != "none") {
+		if (canvas.style.visibility != "hidden" && canvas.style.display != "none") {
 			const t = pr * 2;
 			// Arm swing
 			const basicArmRotationZ = Math.PI * 0.02;
@@ -938,19 +975,31 @@ margin-top:20px;
 		progress5 = undefined;
 		endRotationXR = undefined;
 		endRotationXL = undefined;
-		isTimeoutSetted = true;
+		isWaveTimerSet = false;
+		currentPriority = PRIORITY_FINISH;
 		clearTimeout(waveTimeout);
+		clearTimeout(ws);
 		clearTimeout(timeout);
 		addAnimation = () => {}
 	}
 	var waveTimeout;
-	var isTimeoutSetted = false;
+	var isWaveTimerSet = false;
+	var PRIORITY_FINISH = 0;
+	var PRIORITY_WAVE = 1;
+	var PRIORITY_WHEEL = 2;
+	var PRIORITY_MOUSE = 3;
+	var PRIORITY_KEYBOARD = 4;
+	var currentPriority = 0;
 	var _t0;
 	var _t1;
 	var z0;
 
 	function handleWaveAnimation() {
 		function wave() {
+			isWaveTimerSet = false;
+			if (currentPriority > PRIORITY_WAVE) return;
+			stopAddedAnimation();
+			currentPriority = PRIORITY_WAVE;
 			addAnimation = (player, progress) => {
 				_t0 = !_t0 ? progress : _t0;
 				const t = (progress - _t0) * 2.1 * Math.PI;
@@ -974,10 +1023,10 @@ margin-top:20px;
 				}
 			}
 		}
-		if (!isTimeoutSetted) {
-			waveTimeout = setTimeout(wave, 800);
-		}
-		isTimeoutSetted = true;
+		if (isWaveTimerSet) return;
+		if (currentPriority > PRIORITY_WAVE) return;
+		waveTimeout = setTimeout(wave, 800);
+		isWaveTimerSet = true;
 	}
 
 	var light;
@@ -1021,7 +1070,7 @@ margin-top:20px;
 			handleWaveAnimation();
 		} else {
 			clearTimeout(waveTimeout);
-			isTimeoutSetted = false;
+			isWaveTimerSet = false;
 		}
 	}
 	moveFunction = rafThrottle(moveFunction);
@@ -1043,7 +1092,7 @@ margin-top:20px;
 
 	function finishMoveFunction() {
 		clearTimeout(waveTimeout);
-		isTimeoutSetted = false;
+		isWaveTimerSet = false;
 	}
 	finishMoveFunction = rafThrottle(finishMoveFunction)
 	window.addEventListener("touchend", finishMoveFunction, {
@@ -1066,15 +1115,29 @@ margin-top:20px;
 		try {
 			clearTimeout(ws)
 		} catch (e) {}
+		if (currentPriority > PRIORITY_WHEEL) return;
+		if (currentPriority !== PRIORITY_WHEEL) {
+			stopAddedAnimation();
+			currentPriority = PRIORITY_WHEEL;
+		}
 		event = event || window.event;
-		let delta = event.wheelDelta || -event.detail;
-		var k = Math.pow(Math.abs(delta / 120), 1 / 3);
+		let deltaY = event.deltaY;
+		let deltaMode = event.deltaMode;
+		let normalizedDelta;
+
+		if (deltaMode === 1) {
+			normalizedDelta = -deltaY * 40;
+		} else if (deltaMode === 2) {
+			normalizedDelta = -deltaY * 120;
+		} else {
+			normalizedDelta = -deltaY * 1.2;
+		}
+		let delta = normalizedDelta;
+		var k = Math.pow(Math.abs(delta / 120), 1 / 3) || 1;
 		if (delta > 0) {
 			addAnimation = function(player, progress) {
 				if (!progress1) {
 					progress1 = progress;
-					isTimeoutSetted = true;
-					clearTimeout(waveTimeout);
 				}
 				progress2 = undefined;
 				player.skin.rightArm.rotation.x = -0.1 + (Math.floor((progress - progress1) / (Math.PI / (13 * k))) % 2 == 0 ? (-Math.acos(Math.cos((k * 13 * (progress - progress1 - Math.PI / (13 * k))))) * 0.5) : -0.5);
@@ -1084,8 +1147,6 @@ margin-top:20px;
 			addAnimation = function(player, progress) {
 				if (!progress2) {
 					progress2 = progress;
-					isTimeoutSetted = true;
-					clearTimeout(waveTimeout);
 				}
 				progress1 = undefined;
 				player.skin.rightArm.rotation.x = -0.1 + ((Math.floor((progress - progress2) / (Math.PI / (6 * 2 * k))) % 2 == 0) ? (-Math.abs(Math.asin(Math.sin(6 * k * (progress - progress2)))) * 0.8) : 0);
@@ -1093,6 +1154,8 @@ margin-top:20px;
 			}
 		}
 		ws = setTimeout(() => {
+			if (currentPriority !== PRIORITY_WHEEL) return;
+			currentPriority = PRIORITY_FINISH;
 			addAnimation = function(player, progress) {
 				if (!endRotationX) {
 					endRotationX = player.skin.rightArm.rotation.x;
@@ -1116,12 +1179,13 @@ margin-top:20px;
 	})
 	var mousedownFunction = function() {
 		handleAfkAnimation();
+		if (currentPriority > PRIORITY_MOUSE) return;
+		stopAddedAnimation();
+		currentPriority = PRIORITY_MOUSE;
 		var progress0
 		addAnimation = function(player, progress) {
 			if (!progress0) {
 				progress0 = progress;
-				isTimeoutSetted = true;
-				clearTimeout(waveTimeout);
 			}
 			if (mouseFollowMode != "java") {
 				player.rotation.y = defaultRotation;
@@ -1160,6 +1224,10 @@ margin-top:20px;
 		try {
 			clearTimeout(timeout);
 		} catch (e) {}
+		if (currentPriority !== PRIORITY_KEYBOARD) {
+			stopAddedAnimation();
+			currentPriority = PRIORITY_KEYBOARD;
+		}
 		var deltaTime;
 		if (time0 == -1) {
 			time0 = Date.now();
@@ -1173,8 +1241,6 @@ margin-top:20px;
 		addAnimation = function(player, progress) {
 			if (!progress4) {
 				progress4 = progress;
-				isTimeoutSetted = true;
-				clearTimeout(waveTimeout);
 			}
 			var pr = progress - progress4;
 			player.skin.leftArm.rotation.z = -0.27;
@@ -1183,6 +1249,8 @@ margin-top:20px;
 			player.skin.rightArm.rotation.x = -Math.abs(Math.PI / 6 * Math.cos(pr * 5 * k)) - 0.6;
 		}
 		timeout = setTimeout(() => {
+			if (currentPriority !== PRIORITY_KEYBOARD) return;
+			currentPriority = PRIORITY_FINISH;
 			addAnimation = function(player, progress) {
 				if (!progress5) {
 					progress5 = progress;
@@ -1364,7 +1432,11 @@ ${GM_getValue("positionLeft")?langText.position+":left "+GM_getValue("positionLe
 	var fullscreenListener = () => {
 		if (fullscreenAddition) {
 			if (document.fullscreenElement) {
-				document.fullscreenElement.after(canvas);
+				if (document.fullscreenElement == document.documentElement) {
+					document.fullscreenElement.append(canvas);
+				} else {
+					document.fullscreenElement.after(canvas);
+				}
 				canvas.showPopover();
 			} else {
 				document.body.append(canvas);
@@ -1372,9 +1444,9 @@ ${GM_getValue("positionLeft")?langText.position+":left "+GM_getValue("positionLe
 			}
 		} else {
 			if (document.fullscreenElement) {
-				canvas.style.display = "none";
+				canvas.style.visibility = 'hidden';
 			} else {
-				canvas.style.display = "block";
+				canvas.style.visibility = 'visible';
 			}
 		}
 	}
@@ -1467,8 +1539,9 @@ ${GM_getValue("positionLeft")?langText.position+":left "+GM_getValue("positionLe
 					clientY: e.targetTouches[0].clientY + y
 				}]
 			}
-			e.wheelDelta ? data.wheelDelta = e.wheelDelta : null;
-			e.detail ? data.detail = e.detail : null;
+			e.deltaY !== undefined ? data.deltaY = e.deltaY : null;
+			e.deltaMode !== undefined ? data.deltaMode = e.deltaMode : null;
+
 			iframe.contentWindow.parent.postMessage({
 				type: "McSkinIframeEventData",
 				data: data
@@ -1524,8 +1597,8 @@ ${GM_getValue("positionLeft")?langText.position+":left "+GM_getValue("positionLe
 							clientY: e.data.data.targetTouches[0].clientY + y
 						}]
 					}
-					e.data.data.wheelDelta ? data.wheelDelta = e.data.data.wheelDelta : null;
-					e.data.data.detail ? data.detail = e.data.data.detail : null;
+					e.data.data.deltaY !== undefined ? data.deltaY = e.data.data.deltaY : null;
+					e.data.data.deltaMode !== undefined ? data.deltaMode = e.data.data.deltaMode : null;
 					iframe.contentWindow.parent.postMessage({
 						type: "McSkinIframeEventData",
 						data: data
@@ -1604,10 +1677,10 @@ ${GM_getValue("positionLeft")?langText.position+":left "+GM_getValue("positionLe
 	createIframeListener(document);
 	document.addEventListener("visibilitychange", () => {
 		if (document.hidden) {
-			canvas.style.display = "none";
+			canvas.style.visibility = 'hidden';
 			skinViewer.animation.paused = true;
 		} else {
-			canvas.style.display = "block";
+			canvas.style.visibility = 'visible';
 			skinViewer.animation.paused = false;
 		}
 	}, {

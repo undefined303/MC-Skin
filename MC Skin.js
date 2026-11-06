@@ -2,7 +2,7 @@
 // @name            MC-Skin
 // @name:en         MC-Skin
 // @namespace       https://viayoo.com/
-// @version         5.4
+// @version         5.5
 // @description     在网页里添加一个MC小人
 // @description:en  Add Minecraft skin in webpage
 // @author          undefined303
@@ -32,6 +32,11 @@
 	window[key] = true;
 	'use strict'
 
+	if (typeof skinview3d === 'undefined' || typeof THREE === 'undefined') {
+		console.warn('[McSkin] 依赖缺失 skinview3d/THREE');
+		return;
+	}
+
 	const string = {
 		"zh": {
 			"first_time_upload_tip": "[MC Skin] 初次使用需要上传皮肤文件",
@@ -39,6 +44,10 @@
 			"upload_skin_button": "上传皮肤",
 			"fetch_skin_button": "获取皮肤",
 			"fetching_skin": "获取中 ...",
+			"fetch_step_uuid": "获取UUID中 ...",
+			"fetch_step_profile": "获取玩家资料中 ...",
+			"fetch_step_download": "下载皮肤中 ...",
+			"fetch_step_decode": "处理图片中 ...",
 			"skin_not_found": "未获取到皮肤",
 			"skin_load_error": "皮肤加载错误",
 			"url_request_failed": "URL皮肤获取失败，请检查链接是否准确，或者检查网络连接",
@@ -67,6 +76,10 @@
 			"upload_skin_button": "Upload Skin",
 			"fetch_skin_button": "Fetch Skin",
 			"fetching_skin": "Fetching ...",
+			"fetch_step_uuid": "Fetching UUID ...",
+			"fetch_step_profile": "Fetching profile ...",
+			"fetch_step_download": "Fetching skin ...",
+			"fetch_step_decode": "Fetching image ...",
 			"skin_not_found": "Skin not found",
 			"skin_load_error": "Skin load error",
 			"url_request_failed": "URL request failed. Please check if the URL is correct or check your network connection.",
@@ -459,11 +472,17 @@ margin-right:10px;
 							}
 							dialog.close();
 						} else {
+							span1.innerText = langText.fetch_step_download;
 							new Promise((resolve, reject) => {
 								reqs.push(GM_xmlhttpRequest({
 									method: 'GET',
 									url: inputValue,
 									responseType: 'blob',
+									timeout: 15000,
+									ontimeout: function() {
+										if (thisFetchId !== currentFetchId) return;
+										reject('timeout');
+									},
 									onload: function(response) {
 										if (thisFetchId !== currentFetchId) return;
 										if (response.status < 200 || response.status >= 300) {
@@ -489,6 +508,7 @@ margin-right:10px;
 										reader.onerror = function(e) {
 											reject(reader.error ? reader.error.message : "unknown error");
 										};
+										span1.innerText = langText.fetch_step_decode;
 										reader.readAsDataURL(blob);
 									},
 									onerror: function(e) {
@@ -504,17 +524,31 @@ margin-right:10px;
 						}
 					} else {
 						const username = inputValue;
+						span1.innerText = langText.fetch_step_uuid;
 						reqs.push(GM_xmlhttpRequest({
 							method: 'GET',
 							url: `https://api.mojang.com/users/profiles/minecraft/${username}`,
+							timeout: 15000,
+							ontimeout: function() {
+								if (thisFetchId !== currentFetchId) return;
+								alert(langText.api_request_failed);
+								dialog.close();
+							},
 							onload: function(uuidResponse) {
 								if (thisFetchId !== currentFetchId) return;
 								try {
 									const uuidData = JSON.parse(uuidResponse.responseText);
 									const uuid = uuidData.id;
+									span1.innerText = langText.fetch_step_profile;
 									reqs.push(GM_xmlhttpRequest({
 										method: 'GET',
 										url: `https://sessionserver.mojang.com/session/minecraft/profile/${uuid}`,
+										timeout: 15000,
+										ontimeout: function() {
+											if (thisFetchId !== currentFetchId) return;
+											alert(langText.api_request_failed);
+											dialog.close();
+										},
 										onload: function(profileResponse) {
 											if (thisFetchId !== currentFetchId) return;
 											try {
@@ -523,26 +557,44 @@ margin-right:10px;
 												if (!texturesProp) {
 													alert(langText.skin_not_found);
 													dialog.close();
+													return;
 												}
 												const texturesJson = atob(texturesProp.value);
 												const texturesData = JSON.parse(texturesJson);
 												const skinUrl = texturesData.textures.SKIN.url;
+												span1.innerText = langText.fetch_step_download;
 												reqs.push(GM_xmlhttpRequest({
 													method: "GET",
 													url: skinUrl,
+													timeout: 15000,
+													ontimeout: function() {
+														if (thisFetchId !== currentFetchId) return;
+														alert(langText.skin_load_error);
+														dialog.close();
+													},
 													responseType: "blob",
 													onload: function(response) {
 														if (thisFetchId !== currentFetchId) return;
+														if (response.status < 200 || response.status >= 300) {
+															alert(langText.skin_load_error);
+															dialog.close();
+															return;
+														}
 														const reader = new FileReader();
 														reader.onloadend = function() {
 															if (thisFetchId !== currentFetchId) return;
-															skinViewer.loadSkin(reader.result);
-															skin = reader.result;
-															if (isSave) {
-																GM_setValue("skin", reader.result);
+															try {
+																skinViewer.loadSkin(reader.result);
+																skin = reader.result;
+																if (isSave) {
+																	GM_setValue("skin", reader.result);
+																}
+															} catch (er) {
+																alert(langText.skin_load_error);
 															}
 															dialog.close();
 														}
+														span1.innerText = langText.fetch_step_decode;
 														reader.readAsDataURL(response.response);
 													},
 													onerror: function(e) {
@@ -563,13 +615,21 @@ margin-right:10px;
 										}
 									}));
 								} catch (e) {
-									alert(`${e.responseText ? JSON.parse(e.responseText).errorMessage : langText.api_request_failed}`);
+									let msg = langText.api_request_failed;
+									try {
+										msg = JSON.parse(uuidResponse.responseText).errorMessage || msg;
+									} catch (_) {}
+									alert(msg);
 									dialog.close();
 								}
 							},
 							onerror: function(e) {
 								if (thisFetchId !== currentFetchId) return;
-								alert(`${e.responseText ? JSON.parse(e.responseText).errorMessage : langText.api_request_failed}`);
+								let msg = langText.api_request_failed;
+								try {
+									msg = JSON.parse(e.responseText).errorMessage || msg;
+								} catch (_) {}
+								alert(msg);
 								dialog.close();
 							}
 						}));
@@ -577,6 +637,7 @@ margin-right:10px;
 				}
 				uploadBtn.onclick = upload;
 			} else {
+				upload = undefined;
 				uploadBtn.innerText = langText.upload_skin_button;
 				uploadBtn.onclick = function() {
 					uploadSkin(isSave);
@@ -587,7 +648,7 @@ margin-right:10px;
 		let isDown = false;
 		pasteKeyDownListener = function(e) {
 			if (shadow.activeElement != skinInp) {
-				uploadBtnOnClick = uploadBtn.onclick;
+				if (!isDown) uploadBtnOnClick = uploadBtn.onclick;
 				if (e.ctrlKey || e.metaKey) {
 					isDown = true;
 					if (!/\+|Ctrl/.test(uploadBtn.innerText)) {
@@ -747,7 +808,7 @@ margin-top:20px;
 		skinInp.addEventListener("keydown", function(e) {
 			if (e.keyCode == 13) {
 				e.preventDefault();
-				upload();
+				if (typeof upload === "function") upload();
 			}
 		})
 
@@ -778,19 +839,10 @@ margin-top:20px;
 		dialog.blur();
 	}
 	var opacity = GM_getValue("opacity", "0.85");
-	var positionLeft;
-	var positionTop;
 	var w = 130;
 	var h = 200;
-	var positionSetting = {
-		top: {
-			top: 0
-		},
-		bottom: {
-			top: `calc(100vh - ${h}px)`,
-		}
-	}
-	var position = positionSetting.bottom;
+	var currentLeftCss = GM_getValue("positionLeft", `calc(100vw - ${w}px)`);
+	var currentTopCss = GM_getValue("positionTop", `calc(100vh - ${h}px)`);
 	var canvasContainer = document.createElement("div");
 	document.body.appendChild(canvasContainer);
 	canvasContainer.attachShadow({
@@ -801,14 +853,11 @@ margin-top:20px;
 	canvas.style.margin = "0";
 	canvas.style.border = "none";
 	canvas.style.position = "fixed";
-	positionLeft = GM_getValue("positionLeft", `calc(100vw - ${w}px)`);
-	positionTop = GM_getValue("positionTop", position.top);
-	canvas.style.top = positionTop;
-	canvas.style.left = positionLeft;
 	canvas.style.zIndex = "calc(infinity)";
 	canvas.style.pointerEvents = "none";
 	canvas.style.opacity = opacity;
 	canvas.style.background = "transparent";
+	canvas.style.transformOrigin = "0 0";
 	canvasContainer.shadowRoot.appendChild(canvas);
 	let skinViewer = new skinview3d.SkinViewer({
 		canvas: canvas,
@@ -816,7 +865,14 @@ margin-top:20px;
 		height: h,
 		skin: skin
 	});
-	canvas.showPopover();
+
+	try {
+		canvas.showPopover();
+	} catch (e) {
+		canvas.removeAttribute("popover");
+		canvas.style.display = "block";
+		canvas.style.zIndex = "2147483647";
+	}
 	canvas.addEventListener('webglcontextlost', (event) => {
 		event.preventDefault();
 		console.warn('WebGL context lost.');
@@ -1078,9 +1134,7 @@ margin-top:20px;
 		passive: true,
 		capture: true
 	});
-	window.addEventListener("touchstart", e => {
-		moveFunction
-	}, {
+	window.addEventListener("touchstart", moveFunction, {
 		passive: true,
 		capture: true
 	});
@@ -1325,62 +1379,101 @@ font-size:` + fontSize.replace(/px/, "") / 1.3 + "px")
 
 		function makeDraggable(element) {
 			element.style.pointerEvents = "auto";
-			let isDragging = false;
-			let startX, startY, initialLeft, initialTop;
-			const parsePosition = (type) => {
-				var originalPosition = (type == "left" ? (getComputedStyle(element).left.replace(/px/, "") / window.innerWidth) * 100 + "vw" : (getComputedStyle(element).top.replace(/px/, "") / window.innerHeight) * 100 + "vh")
-				const value = originalPosition;
-				const match = value.match(/(-?\d+\.?\d*)v[w|h]/);
-				return match ? parseFloat(match[1]) : 0;
+			element.style.touchAction = "none";
+			var pointerId = null;
+			var downOffsetX = 0,
+				downOffsetY = 0;
+
+			var onDown = function(e) {
+				if (pointerId !== null) return;
+				pointerId = e.pointerId;
+				try {
+					element.setPointerCapture(e.pointerId);
+				} catch (_) {}
+
+				var p = getVisualViewportParams();
+				var Z = p.Z;
+				var rect = canvas.getBoundingClientRect();
+				var visual_left = (rect.left - p.OL) * Z;
+				var visual_top = (rect.top - p.OT) * Z;
+				var visual_w = rect.width * Z;
+				var visual_h = rect.height * Z;
+				var cx_visual = visual_left + visual_w / 2;
+				var cy_visual = visual_top + visual_h / 2;
+
+				var mouse_visual_x = (e.clientX - p.OL) * Z;
+				var mouse_visual_y = (e.clientY - p.OT) * Z;
+
+				downOffsetX = mouse_visual_x - cx_visual;
+				downOffsetY = mouse_visual_y - cy_visual;
+				e.preventDefault();
 			};
-			const pxToVW = (px) => (px / window.innerWidth) * 100;
-			const pxToVH = (px) => (px / window.innerHeight) * 100;
-			const startDrag = (clientX, clientY) => {
-				isDragging = true;
-				initialLeft = parsePosition('left');
-				initialTop = parsePosition('top');
-				startX = clientX;
-				startY = clientY;
-			};
-			const handleMove = (clientX, clientY) => {
-				var width = element.getBoundingClientRect().width;
-				var height = element.getBoundingClientRect().height;
-				if (!isDragging) return;
-				const deltaX = clientX - startX;
-				const deltaY = clientY - startY;
-				var isRightSide = (initialLeft + pxToVW(deltaX)) + pxToVW(0.5 * width) >= 50;
-				var isBottomSide = (initialTop + pxToVH(deltaY)) + pxToVH(0.5 * height) >= 50;
-				if (isRightSide) {
+
+			var onMove = function(e) {
+				if (e.pointerId !== pointerId) return;
+				var p = getVisualViewportParams();
+				var Z = p.Z;
+				var VW_visual = p.VW_visual;
+				var VH_visual = p.VH_visual;
+				var visual_w = w * canvasScale;
+				var visual_h = h * canvasScale;
+
+				var mouse_visual_x = (e.clientX - p.OL) * Z;
+				var mouse_visual_y = (e.clientY - p.OT) * Z;
+				var newCxVisual = mouse_visual_x - downOffsetX;
+				var newCyVisual = mouse_visual_y - downOffsetY;
+				var newVisualLeft = newCxVisual - visual_w / 2;
+				var newVisualTop = newCyVisual - visual_h / 2;
+
+				newVisualLeft = Math.max(-visual_w / 2, Math.min(VW_visual - visual_w / 2, newVisualLeft));
+				newVisualTop = Math.max(-visual_h / 2, Math.min(VH_visual - visual_h / 2, newVisualTop));
+				newCxVisual = newVisualLeft + visual_w / 2;
+				newCyVisual = newVisualTop + visual_h / 2;
+				if (newCxVisual >= VW_visual / 2) {
+					var rightPct = (newVisualLeft + visual_w) / VW_visual * 100;
+					currentLeftCss = `calc(${rightPct.toFixed(2)}vw - ${w}px)`;
 					defaultRotation = -Math.abs(defaultRotation);
-					element.style.left = `calc(${Math.min((initialLeft + pxToVW(deltaX) + width/window.innerWidth*100),(window.innerWidth+width/2)/window.innerWidth*100,(window.innerHeight+width/2)/window.innerHeight*100)}vw - ${width}px)`;
 				} else {
+					var leftPct = newVisualLeft / VW_visual * 100;
+					currentLeftCss = `${leftPct.toFixed(2)}vw`;
 					defaultRotation = Math.abs(defaultRotation);
-					element.style.left = `${Math.max((initialLeft + pxToVW(deltaX)),-width/2/window.innerWidth*100,-width/2/window.innerHeight*100)}vw`;
 				}
-				if (isBottomSide) {
-					element.style.top = `calc(${Math.min((initialTop + pxToVH(deltaY) + height/window.innerHeight*100),(window.innerHeight+height/2)/window.innerHeight*100,(window.innerWidth+height/2)/window.innerWidth*100)}vh - ${height}px)`;
+
+				if (newCyVisual >= VH_visual / 2) {
+					var bottomPct = (newVisualTop + visual_h) / VH_visual * 100;
+					currentTopCss = `calc(${bottomPct.toFixed(2)}vh - ${h}px)`;
 				} else {
-					element.style.top = `${Math.max((initialTop + pxToVH(deltaY)),-height/2/window.innerHeight*100,-height/2/window.innerWidth*100)}vh`;
+					var topPct = newVisualTop / VH_visual * 100;
+					currentTopCss = `${topPct.toFixed(2)}vh`;
 				}
+
+				applyCanvasTransform();
+				e.preventDefault();
 			};
-			var mouseMoveFunction = rafThrottle(e => handleMove(e.clientX, e.clientY));
-			var touchMoveFunction = rafThrottle(e => handleMove(e.touches[0].clientX, e.touches[0].clientY));
-			const addEvent = (target, type, handler) => {
+
+			var onUp = function(e) {
+				if (e.pointerId !== pointerId) return;
+				try {
+					element.releasePointerCapture(e.pointerId);
+				} catch (_) {}
+				pointerId = null;
+			};
+
+			var addEvent = function(target, type, handler) {
 				moveListeners.push({
 					target: target,
 					type: type,
 					handler: handler
-				})
+				});
 				target.addEventListener(type, handler, {
-					passive: true,
+					passive: false,
 					capture: true
 				});
-			}
-			addEvent(element, 'mousedown', e => startDrag(e.clientX, e.clientY));
-			addEvent(element, 'touchstart', e => startDrag(e.touches[0].clientX, e.touches[0].clientY));
-			addEvent(document, 'mousemove', mouseMoveFunction);
-			addEvent(document, 'touchmove', touchMoveFunction);
-			['mouseup', 'touchend'].forEach(type => addEvent(document, type, () => isDragging = false));
+			};
+			addEvent(element, "pointerdown", onDown);
+			addEvent(document, "pointermove", onMove);
+			addEvent(document, "pointerup", onUp);
+			addEvent(document, "pointercancel", onUp);
 		}
 		makeDraggable(canvas)
 		canvas.style.border = "5px solid red";
@@ -1390,18 +1483,18 @@ font-size:` + fontSize.replace(/px/, "") / 1.3 + "px")
 		isMoving = false;
 		moveListeners.forEach((item) => {
 			item.target.removeEventListener(item.type, item.handler);
-			canvas.style.border = "none";
-			positionLeft = canvas.style.left;
-			positionTop = canvas.style.top;
 		})
+		moveListeners = [];
+		canvas.style.border = "none";
 		moveMenuId = GM_registerMenuCommand(langText.menu_move, move);
 		GM_unregisterMenuCommand(finishMoveMenuId);
 		canvas.style.pointerEvents = "none";
+		canvas.style.touchAction = "";
 	}
 	moveMenuId = GM_registerMenuCommand(langText.menu_move, move);
 	GM_registerMenuCommand(langText.menu_save_settings, () => {
-		GM_setValue("positionLeft", positionLeft);
-		GM_setValue("positionTop", positionTop);
+		GM_setValue("positionLeft", currentLeftCss);
+		GM_setValue("positionTop", currentTopCss);
 		GM_setValue("opacity", opacity);
 		GM_setValue("skin", skin);
 		if (!isMoving) {
@@ -1419,6 +1512,9 @@ ${GM_getValue("positionLeft")?langText.position+":left "+GM_getValue("positionLe
 		GM_deleteValue("defaultRotation");
 		GM_deleteValue("fullscreenAddition");
 		GM_deleteValue("mouseFollowMode");
+		currentLeftCss = `calc(100vw - ${w}px)`;
+		currentTopCss = `calc(100vh - ${h}px)`;
+		applyCanvasTransform();
 	})
 	GM_registerMenuCommand(langText.menu_change_skin, function() {
 		createSkinPickerDialog(false, langText.dialog_change_skin_hint)
@@ -1432,15 +1528,27 @@ ${GM_getValue("positionLeft")?langText.position+":left "+GM_getValue("positionLe
 	var fullscreenListener = () => {
 		if (fullscreenAddition) {
 			if (document.fullscreenElement) {
-				if (document.fullscreenElement == document.documentElement) {
-					document.fullscreenElement.append(canvas);
+				if (window.location.hostname.includes('bilibili.com') && document.fullscreenElement !== document.documentElement && typeof canvas.showPopover === 'function') {
+					document.fullscreenElement.after(canvasContainer);
 				} else {
-					document.fullscreenElement.after(canvas);
+					document.fullscreenElement.append(canvasContainer);
 				}
-				canvas.showPopover();
+				try {
+					canvas.showPopover();
+				} catch (e) {
+					canvas.removeAttribute("popover");
+					canvas.style.display = "block";
+					canvas.style.zIndex = "2147483647";
+				}
 			} else {
-				document.body.append(canvas);
-				canvas.showPopover();
+				document.body.append(canvasContainer);
+				try {
+					canvas.showPopover();
+				} catch (e) {
+					canvas.removeAttribute("popover");
+					canvas.style.display = "block";
+					canvas.style.zIndex = "2147483647";
+				}
 			}
 		} else {
 			if (document.fullscreenElement) {
@@ -1449,9 +1557,11 @@ ${GM_getValue("positionLeft")?langText.position+":left "+GM_getValue("positionLe
 				canvas.style.visibility = 'visible';
 			}
 		}
+		applyCanvasTransform();
 	}
 	document.addEventListener('fullscreenchange', fullscreenListener, {
-		passive: true
+		passive: true,
+		capture: true
 	});
 	var fc1Click = () => {
 		GM_unregisterMenuCommand(fc1);
@@ -1468,9 +1578,6 @@ ${GM_getValue("positionLeft")?langText.position+":left "+GM_getValue("positionLe
 	if (!fullscreenAddition) {
 		fc1 = GM_registerMenuCommand(langText.menu_enable_fullscreen_skin, fc1Click);
 	} else {
-		document.addEventListener('fullscreenchange', fullscreenListener, {
-			passive: true
-		});
 		fc2 = GM_registerMenuCommand(langText.menu_disable_fullscreen_skin, fc2Click);
 	}
 	var changeMouseModeMenu;
@@ -1504,25 +1611,111 @@ ${GM_getValue("positionLeft")?langText.position+":left "+GM_getValue("positionLe
 		changeMouseModeMenu = GM_registerMenuCommand(langText.menu_switch_mouse_bedrock, changeMouseFollowMode);
 	}
 	var canvasScale = 1;
-	var resizeFunction = () => {
-		const canvasRect = canvas.getBoundingClientRect();
-		if (window.innerHeight <= 1.5 * h) {
-			var deltaTop = 0;
-			if (/px/.test(canvas.style.top)) {
-				deltaTop = h * (1 - canvasScale);
-			}
-			canvas.style.transformOrigin = `50% ${window.innerHeight/2-canvasRect.top+deltaTop}px`;
-			canvasScale = window.innerHeight / (1.5 * h);
-			canvas.style.transform = `scale(${canvasScale})`;
-		} else {
-			canvasScale = 1;
-			canvas.style.transform = "scale(1)";
+
+	function getVisualViewportParams() {
+		var vv = window.visualViewport;
+		if (!vv) {
+			return {
+				Z: 1,
+				OL: 0,
+				OT: 0,
+				VW_visual: window.innerWidth,
+				VH_visual: window.innerHeight
+			};
 		}
+		var Z = vv.scale || 1;
+		return {
+			Z: Z,
+			OL: vv.offsetLeft,
+			OT: vv.offsetTop,
+			VW_visual: vv.width * Z,
+			VH_visual: vv.height * Z
+		};
+	}
+
+	function parseVisualPos(str, unit) {
+		if (!str) return null;
+		var reCalc = new RegExp('^calc\\(\\s*([-\\d.]+)' + unit + '\\s*-\\s*([-\\d.]+)px\\s*\\)$');
+		var m = str.match(reCalc);
+		if (m) return {
+			pct: parseFloat(m[1]),
+			px: parseFloat(m[2])
+		};
+		var reSimple = new RegExp('^([-\\d.]+)' + unit + '$');
+		m = str.match(reSimple);
+		if (m) return {
+			pct: parseFloat(m[1]),
+			px: 0
+		};
+		return null;
+	}
+
+	function applyCanvasTransform() {
+		var p = getVisualViewportParams();
+		var Z = p.Z;
+		var VW_visual = p.VW_visual;
+		var VH_visual = p.VH_visual;
+
+		var newCanvasScale = VH_visual <= 1.5 * h ? VH_visual / (1.5 * h) : 1;
+		canvasScale = newCanvasScale;
+		var visual_w = w * canvasScale;
+		var visual_h = h * canvasScale;
+
+		var leftInfo = parseVisualPos(currentLeftCss, 'vw');
+		var topInfo = parseVisualPos(currentTopCss, 'vh');
+		if (!leftInfo) leftInfo = {
+			pct: 100,
+			px: w
+		};
+		if (!topInfo) topInfo = {
+			pct: 100,
+			px: h
+		};
+
+		var vl = leftInfo.pct / 100 * VW_visual - leftInfo.px * canvasScale;
+		var vt = topInfo.pct / 100 * VH_visual - topInfo.px * canvasScale;
+
+		vl = Math.max(-visual_w / 2, Math.min(VW_visual - visual_w / 2, vl));
+		vt = Math.max(-visual_h / 2, Math.min(VH_visual - visual_h / 2, vt));
+
+		var css_left = p.OL + vl / Z;
+		var css_top = p.OT + vt / Z;
+
+		canvas.style.left = css_left + "px";
+		canvas.style.top = css_top + "px";
+		canvas.style.transform = "scale(" + (canvasScale / Z) + ")";
+	}
+
+	function applyDialogTransform() {
+		var vv = window.visualViewport;
+		if (!vv || vv.scale === 1) {
+			if (dialog.style.transform) dialog.style.transform = "";
+			return;
+		}
+		var S = vv.scale;
+		var dx = (vv.offsetLeft + vv.width / 2) - window.innerWidth / 2;
+		var dy = (vv.offsetTop + vv.height / 2) - window.innerHeight / 2;
+		dialog.style.transform = "translate(" + dx + "px," + dy + "px) scale(" + (1 / S) + ")";
+	}
+	var resizeFunction = () => {
+		applyCanvasTransform();
+		applyDialogTransform();
 	}
 	resizeFunction = rafThrottle(resizeFunction);
 	window.addEventListener("resize", resizeFunction, {
 		passive: true
 	})
+	applyCanvasTransform();
+	applyDialogTransform();
+
+	if (window.visualViewport) {
+		window.visualViewport.addEventListener("resize", resizeFunction, {
+			passive: true
+		});
+		window.visualViewport.addEventListener("scroll", resizeFunction, {
+			passive: true
+		});
+	}
 
 	function addIframeEventListener(iframe) {
 		function pushEventMessage(e) {
